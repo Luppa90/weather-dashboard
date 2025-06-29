@@ -1,7 +1,7 @@
 // --- CONFIGURATION ---
 // REPLACE these values with your ThingSpeak channel ID and Read API Key
-const a = 'YOUR_CHANNEL_ID'; // ThingSpeak Channel ID
-const b = 'YOUR_READ_API_KEY'; // ThingSpeak Read API Key
+const a = '3000045'; // ThingSpeak Channel ID
+const b = '0Z0Q3YOZYC8U5CA6'; // ThingSpeak Read API Key
 
 // --- DOM ELEMENT REFERENCES ---
 const tempValueElem = document.getElementById('temp-value');
