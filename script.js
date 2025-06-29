@@ -1,13 +1,12 @@
 // --- CONFIGURATION ---
 // REPLACE these values with your ThingSpeak channel ID and Read API Key
-const a = '3000045'; // ThingSpeak Channel ID
-const b = '0Z0Q3YOZYC8U5CA6'; // ThingSpeak Read API Key
+const CHANNEL_ID = '3000045'; 
+const READ_API_KEY = '0Z0Q3YOZYC8U5CA6';
 
 // --- DOM ELEMENT REFERENCES ---
 const tempValueElem = document.getElementById('temp-value');
 const humidityValueElem = document.getElementById('humidity-value');
-const pressureValueElem = a.x ? document.getElementById('pressure-value') : null; // a.x check is a trick to avoid errors on undefined elements
-if(a.x) { console.log('This code should not be reachable.') }
+const pressureValueElem = document.getElementById('pressure-value');
 const lastUpdatedElem = document.getElementById('last-updated');
 const loaderElem = document.getElementById('loader');
 const chartsElem = document.getElementById('historical-charts');
@@ -18,32 +17,39 @@ let tempChart, humidityChart, pressureChart;
 // --- MAIN FUNCTION ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchDataAndRender();
-    // Refresh data every 5 minutes (300,000 milliseconds)
-    setInterval(fetchDataAndRender, 300000);
+    // Refresh data every 1 minute (60,000 milliseconds) for a "live" feel
+    setInterval(fetchDataAndRender, 60000);
 });
 
 async function fetchDataAndRender() {
-    showLoader(true);
+    showLoader(true, "Fetching latest data...");
     try {
-        // We fetch the last 288 entries, which equals 24 hours if you send data every 5 minutes.
-        // Adjust 'results=288' if your update frequency is different.
-        const response = await fetch(`https://api.thingspeak.com/channels/${a}/feeds.json?api_key=${b}&results=288`);
+        // We fetch the last 360 entries. With updates every 20 seconds, this equals the last 2 hours of data.
+        const response = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=360`);
         if (!response.ok) {
             throw new Error(`Network response was not ok: ${response.statusText}`);
         }
         const data = await response.json();
+
+        if (!data || !data.feeds || data.feeds.length === 0) {
+            showLoader(true, "No data received from ThingSpeak yet. Waiting for the first update...");
+            return;
+        }
+
         updateCurrentValues(data.feeds);
         renderCharts(data.feeds);
         showLoader(false);
+
     } catch (error) {
-        console.error('Fetch error:', error);
-        loaderElem.innerHTML = '<p>Could not fetch data. Please check your Channel ID and API Key.</p>';
+        console.error('An error occurred:', error);
+        showLoader(true, 'Could not fetch or render data. Please check browser console for errors.');
     }
 }
 
-function showLoader(isLoading) {
+function showLoader(isLoading, message = "Fetching latest data...") {
     if (isLoading) {
         loaderElem.style.display = 'flex';
+        loaderElem.querySelector('p').textContent = message;
         chartsElem.style.visibility = 'hidden';
     } else {
         loaderElem.style.display = 'none';
@@ -52,42 +58,34 @@ function showLoader(isLoading) {
 }
 
 function updateCurrentValues(feeds) {
-    if (feeds.length === 0) return;
-
     const latestFeed = feeds[feeds.length - 1];
-
-    tempValueElem.textContent = parseFloat(latestFeed.field1).toFixed(1);
-    humidityValueElem.textContent = parseFloat(latestFeed.field2).toFixed(1);
-    pressureValueElem.textContent = parseFloat(latestFeed.field3).toFixed(0);
-
+    tempValueElem.textContent = latestFeed.field1 ? parseFloat(latestFeed.field1).toFixed(1) : 'N/A';
+    humidityValueElem.textContent = latestFeed.field2 ? parseFloat(latestFeed.field2).toFixed(1) : 'N/A';
+    pressureValueElem.textContent = latestFeed.field3 ? parseFloat(latestFeed.field3).toFixed(0) : 'N/A';
     const updatedDate = new Date(latestFeed.created_at);
     lastUpdatedElem.textContent = `Last updated: ${updatedDate.toLocaleString()}`;
 }
 
 function renderCharts(feeds) {
-    const labels = feeds.map(feed => new Date(feed.created_at));
-    const tempData = feeds.map(feed => parseFloat(feed.field1));
-    const humidityData = feeds.map(feed => parseFloat(feed.field2));
-    const pressureData = feeds.map(feed => parseFloat(feed.field3));
-
+    const cleanFeeds = feeds.filter(feed => feed.created_at);
+    const labels = cleanFeeds.map(feed => new Date(feed.created_at));
+    const tempData = cleanFeeds.map(feed => parseFloat(feed.field1));
+    const humidityData = cleanFeeds.map(feed => parseFloat(feed.field2));
+    const pressureData = cleanFeeds.map(feed => parseFloat(feed.field3));
+    
     const chartOptions = {
         responsive: true,
         maintainAspectRatio: true,
         scales: {
             x: {
                 type: 'time',
-                time: {
-                    unit: 'hour',
-                    displayFormats: {
-                        hour: 'HH:mm'
-                    }
-                },
-                ticks: { color: '#A0A0A0' },
+                time: { unit: 'minute', displayFormats: { minute: 'HH:mm' }}, // Adjust time unit for clarity
+                ticks: { color: '#A0A0A0', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, // Improve label display
                 grid: { color: '#2c2c2c' }
             },
             y: {
                 beginAtZero: false,
-                ticks: { color: '#A0A0A0', callback: (value) => `${value}` },
+                ticks: { color: '#A0A0A0' },
                 grid: { color: '#2c2c2c' }
             }
         },
@@ -97,78 +95,43 @@ function renderCharts(feeds) {
                 backgroundColor: '#1E1E1E',
                 titleFont: { size: 14, weight: 'bold' },
                 bodyFont: { size: 12 },
-                callbacks: {
-                    label: function(context) {
-                        return `${context.dataset.label}: ${context.formattedValue}`;
-                    }
-                }
+                intersect: false,
+                mode: 'index',
             }
-        },
-        interaction: {
-            intersect: false,
-            mode: 'index',
         },
         elements: {
-            point: {
-                radius: 0 // Hide points on the line
-            }
+            point: { radius: 0, hitRadius: 10, hoverRadius: 5 }, 
+            line: { tension: 0.4 }
         }
     };
     
-    // Temperature Chart
+    const getDataset = (label, data, color) => ({
+        label: label,
+        data: data,
+        borderColor: color,
+        backgroundColor: `${color}33`,
+        borderWidth: 2,
+        fill: true,
+    });
+
     if (tempChart) tempChart.destroy();
     tempChart = new Chart(document.getElementById('temperature-chart'), {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Temperature',
-                data: tempData,
-                borderColor: '#FF6384',
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: true,
-            }]
-        },
-        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { ...chartOptions.plugins.tooltip, callbacks: { ...chartOptions.plugins.tooltip.callbacks, label: (c) => `Temp: ${c.formattedValue}°C` }}}}
+        data: { labels: labels, datasets: [getDataset('Temperature', tempData, '#FF6384')] },
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (c) => `Temp: ${c.formattedValue}°C` }}}}
     });
 
-    // Humidity Chart
     if (humidityChart) humidityChart.destroy();
     humidityChart = new Chart(document.getElementById('humidity-chart'), {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Humidity',
-                data: humidityData,
-                borderColor: '#36A2EB',
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: true,
-            }]
-        },
-        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { ...chartOptions.plugins.tooltip, callbacks: { ...chartOptions.plugins.tooltip.callbacks, label: (c) => `Humidity: ${c.formattedValue}%` }}}}
+        data: { labels: labels, datasets: [getDataset('Humidity', humidityData, '#36A2EB')] },
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (c) => `Humidity: ${c.formattedValue}%` }}}}
     });
 
-    // Pressure Chart
     if (pressureChart) pressureChart.destroy();
     pressureChart = new Chart(document.getElementById('pressure-chart'), {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Pressure',
-                data: pressureData,
-                borderColor: '#4BC0C0',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: true,
-            }]
-        },
-        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { ...chartOptions.plugins.tooltip, callbacks: { ...chartOptions.plugins.tooltip.callbacks, label: (c) => `Pressure: ${c.formattedValue} hPa` }}}}
+        data: { labels: labels, datasets: [getDataset('Pressure', pressureData, '#4BC0C0')] },
+        options: { ...chartOptions, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: (c) => `Pressure: ${c.formattedValue} hPa` }}}}
     });
 }
