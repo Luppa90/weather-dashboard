@@ -1,0 +1,79 @@
+      
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/9a2d832d29.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Live Weather Report</h1>
+            <p id="last-updated">Last updated: -</p>
+        </header>
+
+        <main>
+            <section id="current-conditions">
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-thermometer-half"></i></div>
+                    <div class="card-info">
+                        <h2>Temperature</h2>
+                        <p><span id="temp-value">-</span>°C</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-tint"></i></div>
+                    <div class="card-info">
+                        <h2>Humidity</h2>
+                        <p><span id="humidity-value">-</span>%</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fas fa-compress-arrows-alt"></i></div>
+                    <div class="card-info">
+                        <h2>Pressure</h2>
+                        <p><span id="pressure-value">-</span> hPa</p>
+                    </div>
+                </div>
+            </section>
+            
+            <div id="loader">
+                <div class="spinner"></div>
+                <p>Fetching latest data...</p>
+            </div>
+
+            <section id="historical-charts">
+                <div class="chart-container">
+                    <h2>Temperature Trend (24h)</h2>
+                    <canvas id="temperature-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>Humidity Trend (24h)</h2>
+                    <canvas id="humidity-chart"></canvas>
+                </div>
+                 <div class="chart-container">
+                    <h2>Pressure Trend (24h)</h2>
+                    <canvas id="pressure-chart"></canvas>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Weather Station © 2024</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
+    
