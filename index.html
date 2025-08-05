@@ -15,9 +15,16 @@
 
     <div class="container">
         <header>
-            <h1>Live Weather Report</h1>
+            <h1>Weather Station</h1>
             <p id="last-updated">Last updated: -</p>
         </header>
+
+        <div id="pressure-status" class="status-banner" style="display: none;">
+            <div class="status-content">
+                <i id="pressure-icon" class="fas fa-arrow-up"></i>
+                <span id="pressure-status-message"></span>
+            </div>
+        </div>
 
         <main>
             <section id="current-conditions">
@@ -65,9 +72,6 @@
             </section>
         </main>
 
-        <footer>
-            <p>Weather Station © 2024</p>
-        </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

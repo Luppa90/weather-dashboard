@@ -48,6 +48,61 @@ header p {
     color: var(--secondary-text-color);
 }
 
+/* --- Status Banner --- */
+.status-banner {
+    border-radius: 8px;
+    margin: 20px 0;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+}
+
+.status-banner.rising {
+    border-left: 4px solid #4CAF50;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
+}
+
+.status-banner.falling {
+    border-left: 4px solid #FF5722;
+    background: linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(255, 87, 34, 0.05));
+}
+
+.status-banner.stable {
+    border-left: 4px solid var(--accent-color);
+    background: linear-gradient(135deg, rgba(3, 218, 198, 0.1), rgba(3, 218, 198, 0.05));
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-content i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.status-banner.rising i {
+    color: #4CAF50;
+}
+
+.status-banner.falling i {
+    color: #FF5722;
+}
+
+.status-banner.stable i {
+    color: var(--accent-color);
+}
+
+.status-content span {
+    flex: 1;
+    color: var(--primary-text-color);
+    font-weight: 400;
+    font-size: 0.95rem;
+}
+
 /* --- Loader Spinner --- */
 #loader {
     display: flex;
