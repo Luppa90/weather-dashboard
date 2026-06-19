@@ -48,59 +48,295 @@ header p {
     color: var(--secondary-text-color);
 }
 
-/* --- Status Banner --- */
-.status-banner {
-    border-radius: 8px;
-    margin: 20px 0;
-    padding: 12px 15px;
-    border: 1px solid var(--border-color);
-    background-color: var(--surface-color);
+/* --- Pressure & Migraine Section --- */
+#pressure-section {
+    margin-bottom: 40px;
 }
 
-.status-banner.rising {
-    border-left: 4px solid #4CAF50;
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
-}
-
-.status-banner.falling {
-    border-left: 4px solid #FF5722;
-    background: linear-gradient(135deg, rgba(255, 87, 34, 0.1), rgba(255, 87, 34, 0.05));
-}
-
-.status-banner.stable {
-    border-left: 4px solid var(--accent-color);
-    background: linear-gradient(135deg, rgba(3, 218, 198, 0.1), rgba(3, 218, 198, 0.05));
-}
-
-.status-content {
+.section-head h2 {
+    font-weight: 600;
+    color: var(--accent-color);
+    margin: 0 0 6px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
-.status-content i {
-    font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
+.disclaimer {
+    margin: 0 0 20px;
+    color: var(--secondary-text-color);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    max-width: 800px;
 }
 
-.status-banner.rising i {
-    color: #4CAF50;
+#tendency-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 12px;
 }
 
-.status-banner.falling i {
-    color: #FF5722;
+.tendency-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.status-banner.stable i {
-    color: var(--accent-color);
+.tendency-label {
+    font-size: 0.8rem;
+    color: var(--secondary-text-color);
 }
 
-.status-content span {
-    flex: 1;
-    color: var(--primary-text-color);
+.tendency-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.tendency-value small {
+    font-size: 0.9rem;
     font-weight: 400;
-    font-size: 0.95rem;
+    color: var(--secondary-text-color);
+}
+
+.tendency-value.up { color: #4CAF50; }
+.tendency-value.down { color: #FF5722; }
+.tendency-value.flat { color: var(--secondary-text-color); }
+
+/* Risk card colours */
+#risk-card.risk-low { border-left: 4px solid var(--accent-color); }
+#risk-card.risk-moderate { border-left: 4px solid #FFB300; }
+#risk-card.risk-high { border-left: 4px solid #FF5722; }
+#risk-card.risk-low .tendency-value { color: var(--accent-color); }
+#risk-card.risk-moderate .tendency-value { color: #FFB300; }
+#risk-card.risk-high .tendency-value { color: #FF5722; }
+
+#risk-detail {
+    margin: 0 0 24px;
+    color: var(--primary-text-color);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    min-height: 1.2em;
+}
+
+/* Migraine logging controls */
+#migraine-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.controls-label {
+    font-size: 0.85rem;
+    color: var(--secondary-text-color);
+}
+
+.log-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.log-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.log-btn i { font-size: 0.85rem; }
+.log-btn:active { transform: scale(0.97); }
+
+.type-early { color: #FFB300; border-color: #FFB300; }
+.type-early:hover { background: rgba(255, 179, 0, 0.13); }
+.type-pressure { color: #FF5722; border-color: #FF5722; }
+.type-pressure:hover { background: rgba(255, 87, 34, 0.13); }
+.type-other { color: #9E9E9E; border-color: #9E9E9E; }
+.type-other:hover { background: rgba(158, 158, 158, 0.13); }
+
+.log-extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+#log-note,
+#log-at-type {
+    background-color: var(--surface-color);
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color-scheme: dark;
+}
+
+#log-note {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+/* Colour key under the pressure chart */
+.marker-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--secondary-text-color);
+}
+
+.marker-legend .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.btn {
+    background-color: var(--accent-color);
+    color: #00201c;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn:hover { background-color: var(--accent-color-dark); color: var(--primary-text-color); }
+.btn:active { transform: scale(0.97); }
+
+.btn-ghost {
+    background-color: transparent;
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+}
+.btn-ghost:hover { background-color: var(--surface-color); color: var(--primary-text-color); }
+
+.log-at {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#log-at-input {
+    background-color: var(--surface-color);
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color-scheme: dark;
+}
+
+#migraine-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.list-label {
+    font-size: 0.8rem;
+    color: var(--secondary-text-color);
+    margin-right: 4px;
+}
+
+#migraine-list .empty {
+    margin: 0;
+    color: var(--secondary-text-color);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.migraine-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: rgba(255, 99, 132, 0.12);
+    border: 1px solid rgba(255, 99, 132, 0.4);
+    border-radius: 20px;
+    padding: 5px 6px 5px 12px;
+    font-size: 0.82rem;
+    color: var(--primary-text-color);
+}
+
+.migraine-chip i { color: #FF6384; font-size: 0.8rem; }
+
+.chip-remove {
+    background: none;
+    border: none;
+    color: var(--secondary-text-color);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 50%;
+}
+.chip-remove:hover { color: #FF6384; }
+
+/* Chart header with range toggle */
+.chart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.chart-head h2 { margin: 0; }
+
+.range-toggle {
+    display: inline-flex;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.range-btn {
+    background: none;
+    border: none;
+    color: var(--secondary-text-color);
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.range-btn:hover { color: var(--primary-text-color); }
+.range-btn.active {
+    background-color: var(--accent-color);
+    color: #00201c;
+    font-weight: 600;
+}
+
+@media (min-width: 768px) {
+    #tendency-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* --- Loader Spinner --- */

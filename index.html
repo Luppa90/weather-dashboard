@@ -1,4 +1,4 @@
-      
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,13 +18,6 @@
             <h1>Weather Station</h1>
             <p id="last-updated">Last updated: -</p>
         </header>
-
-        <div id="pressure-status" class="status-banner" style="display: none;">
-            <div class="status-content">
-                <i id="pressure-icon" class="fas fa-arrow-up"></i>
-                <span id="pressure-status-message"></span>
-            </div>
-        </div>
 
         <main>
             <section id="current-conditions">
@@ -50,24 +43,91 @@
                     </div>
                 </div>
             </section>
-            
+
             <div id="loader">
                 <div class="spinner"></div>
                 <p>Fetching latest data...</p>
             </div>
 
-            <section id="historical-charts"> 
+            <!-- ===== Pressure & Migraine tracking ===== -->
+            <section id="pressure-section">
+                <div class="section-head">
+                    <h2><i class="fas fa-head-side-cough"></i> Pressure &amp; Migraine Tracking</h2>
+                    <p class="disclaimer">Falling and rapidly-changing barometric pressure is a common migraine trigger. Log your migraines below to spot your own pattern. This is a personal tracking aid, not medical advice.</p>
+                </div>
+
+                <!-- Tendency / risk readout -->
+                <div id="tendency-grid">
+                    <div class="tendency-card">
+                        <span class="tendency-label">Now</span>
+                        <span class="tendency-value"><span id="t-now">-</span> <small>hPa</small></span>
+                    </div>
+                    <div class="tendency-card">
+                        <span class="tendency-label">Change · 3 h</span>
+                        <span class="tendency-value" id="t-3h">-</span>
+                    </div>
+                    <div class="tendency-card">
+                        <span class="tendency-label">Change · 24 h</span>
+                        <span class="tendency-value" id="t-24h">-</span>
+                    </div>
+                    <div class="tendency-card" id="risk-card">
+                        <span class="tendency-label">Migraine risk</span>
+                        <span class="tendency-value" id="t-risk">-</span>
+                    </div>
+                </div>
+                <p id="risk-detail"></p>
+
+                <!-- Migraine logging -->
+                <div id="migraine-controls">
+                    <span class="controls-label">Log how you feel right now:</span>
+                    <div class="log-btn-row">
+                        <button class="log-btn type-early" data-type="early"><i class="fas fa-circle-exclamation"></i> Head pressure (early)</button>
+                        <button class="log-btn type-pressure" data-type="pressure"><i class="fas fa-bolt"></i> Pressure migraine</button>
+                        <button class="log-btn type-other" data-type="other"><i class="fas fa-notes-medical"></i> Other / non-pressure</button>
+                    </div>
+                    <div class="log-extra">
+                        <input type="text" id="log-note" maxlength="80" placeholder="Optional note (e.g. missed coffee, tight shoulders)">
+                        <div class="log-at">
+                            <input type="datetime-local" id="log-at-input">
+                            <select id="log-at-type">
+                                <option value="early">Head pressure (early)</option>
+                                <option value="pressure" selected>Pressure migraine</option>
+                                <option value="other">Other / non-pressure</option>
+                            </select>
+                            <button id="log-at-btn" class="btn btn-ghost">Log at time</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="migraine-list"></div>
+
+                <!-- Pressure chart with range toggle -->
+                <div class="chart-container">
+                    <div class="chart-head">
+                        <h2>Pressure Trend</h2>
+                        <div id="range-toggle" class="range-toggle">
+                            <button data-range="24h" class="range-btn">24 h</button>
+                            <button data-range="3d" class="range-btn">3 days</button>
+                            <button data-range="7d" class="range-btn active">7 days</button>
+                        </div>
+                    </div>
+                    <canvas id="pressure-chart"></canvas>
+                    <div class="marker-legend">
+                        <span><i class="dot" style="background:#FFB300"></i> Head pressure (early)</span>
+                        <span><i class="dot" style="background:#FF5722"></i> Pressure migraine</span>
+                        <span><i class="dot" style="background:#9E9E9E"></i> Other / non-pressure</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Recent temperature & humidity ===== -->
+            <section id="historical-charts">
                   <div class="chart-container">
-                      <h2>Temperature Trend (Last 2 Hours)</h2>
+                      <h2>Temperature Trend (Last 3 Hours)</h2>
                       <canvas id="temperature-chart"></canvas>
                   </div>
                   <div class="chart-container">
-                      <h2>Humidity Trend (Last 2 Hours)</h2>
+                      <h2>Humidity Trend (Last 3 Hours)</h2>
                       <canvas id="humidity-chart"></canvas>
-                  </div>
-                   <div class="chart-container">
-                      <h2>Pressure Trend (Last 2 Hours)</h2>
-                      <canvas id="pressure-chart"></canvas>
                   </div>
             </section>
         </main>
@@ -76,8 +136,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="script.js"></script>
 </body>
 </html>
-
-    
