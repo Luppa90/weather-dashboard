@@ -17,9 +17,10 @@
  * posts fields 1-4 as before and the dashboard keeps every CO2 panel hidden.
  *
  * Serial commands (115200 baud), one letter + Enter:
- *   i   print status
+ *   i   print status (includes the BME280 cross-check)
  *   c   forced recalibration in fresh air  (see notes at performFrc)
  *   a   toggle automatic self-calibration
+ *   x   rescan the I2C bus
  */
 
 #include <WiFi.h>
@@ -86,6 +87,12 @@ const unsigned long co2PollIntervalMs = 2000UL;
 // cannot be issued while a measurement is running.
 bool ascActive = false;
 
+/* The SCD41 reports temperature and humidity too, but they are NOT used as
+ * data — see the note above readMeasurement's caller. They are kept only as a
+ * health cross-check against the BME280. */
+float lastScdTempC = NAN;
+float lastScdRh    = NAN;
+
 // --- Timing ---
 const unsigned long updateIntervalMs = 30000UL;
 unsigned long lastUpdateMs = 0;
@@ -114,6 +121,7 @@ void performFrc();
 void toggleAsc();
 void printStatus();
 void handleSerial();
+void scanI2C();
 
 static char scdErrMsg[64];
 
@@ -230,6 +238,34 @@ void pollCo2() {
 
   lastCo2Ppm  = (float)co2;
   lastCo2AtMs = millis();
+
+  /* Deliberately not posted, and deliberately not averaged with the BME280.
+   * The SCD41 sits next to its own 205 mA heater, so its temperature error is
+   * a systematic positive offset rather than random noise — averaging would
+   * fold half of that bias permanently into the record instead of cancelling
+   * it. Kept only so a large disagreement can flag a failing sensor. */
+  lastScdTempC = scdTemp;
+  lastScdRh    = scdRh;
+}
+
+/* Prints every responding I2C address. The fastest way to tell a wiring
+ * mistake (nothing responds) from a sensor problem (it responds but misbehaves). */
+void scanI2C() {
+  Serial.println("Scanning I2C bus...");
+  int found = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() != 0) continue;
+    Serial.printf("  found 0x%02X", addr);
+    if (addr == 0x76 || addr == 0x77) Serial.print("   <- BME280");
+    if (addr == 0x62) Serial.print("   <- SCD41");
+    Serial.println();
+    found++;
+  }
+  if (found == 0) {
+    Serial.println("  nothing responded. Check SDA (GPIO21), SCL (GPIO22),");
+    Serial.println("  power and a shared ground between every board.");
+  }
 }
 
 /* Forced recalibration. Put the sensor in genuinely fresh air first — outdoors
@@ -299,6 +335,15 @@ void printStatus() {
     if (isnan(lastCo2Ppm)) Serial.println("CO2: no reading yet");
     else Serial.printf("CO2: %.0f ppm (%lus ago)\n", lastCo2Ppm, (millis() - lastCo2AtMs) / 1000);
     Serial.printf("ASC: %s\n", ascActive ? "on" : "off");
+
+    // Cross-check, not data. The SCD41 normally reads a few degrees warm
+    // because it heats itself; a wild disagreement means something is wrong.
+    if (!isnan(lastScdTempC) && bme.takeForcedMeasurement()) {
+      float delta = lastScdTempC - bme.readTemperature();
+      Serial.printf("SCD41 vs BME280: %+.1f C (%.1f%% RH vs %.1f%%)%s\n",
+                    delta, lastScdRh, bme.readHumidity(),
+                    fabsf(delta) > 10.0f ? "   <- suspicious, check both sensors" : "");
+    }
   }
   Serial.printf("WiFi: %s  RSSI %d dBm  heap %lu\n",
                 WiFi.status() == WL_CONNECTED ? "connected" : "down",
@@ -316,6 +361,7 @@ void handleSerial() {
     case 'c': performFrc(); break;
     case 'a': toggleAsc(); break;
     case 'i': printStatus(); break;
+    case 'x': scanI2C(); break;
     default: break;
   }
 }
@@ -331,6 +377,8 @@ void setup() {
   // there; v1.7 raised the limit to 400 kHz). These are tiny transfers, so
   // there is nothing to gain from going faster.
   Wire.setClock(100000);
+
+  scanI2C();
 
   // BME280. Retry rather than hanging forever: a sensor that does not answer
   // at boot used to wedge the station until someone power-cycled it.
@@ -382,7 +430,7 @@ void setup() {
   applyClientTimeout();
   lastSuccessfulPostMs = millis();
   Serial.println("ThingSpeak communication initialized.");
-  Serial.println("Serial commands: i = status, c = recalibrate CO2, a = toggle ASC");
+  Serial.println("Serial commands: i = status, x = scan I2C, c = recalibrate CO2, a = toggle ASC");
 }
 
 // ---------------------------------------------------------------------- loop
