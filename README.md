@@ -127,6 +127,30 @@ separate "fog at 2 with CO₂ at 1400" from "fog at 2 with CO₂ at 600" tells t
 mechanisms apart that would otherwise both be logged as a bad day. It is also a
 cerebral vasodilator, so the effect may not be purely cognitive.
 
+## Station firmware
+
+`firmware/weather_station/weather_station.ino` is the ESP32 sketch that feeds
+channel 3000045. Libraries: Adafruit BME280, Sensirion I2C SCD4x (>= 1.1.0),
+Sensirion Core, ThingSpeak.
+
+The SCD41 sits on the same I2C bus as the BME280 (0x62 and 0x76) and is optional
+at runtime — with no CO2 sensor attached the sketch posts fields 1-4 and the
+dashboard keeps every CO2 panel hidden.
+
+Two details worth keeping:
+
+- **The BME280's pressure is fed to the SCD41** via `setAmbientPressure()`. CO2
+  is measured optically and depends on gas density, so without it the sensor
+  assumes a fixed 1013 hPa and drifts with the weather — putting a
+  pressure-shaped artefact straight into the CO2 series that is being correlated
+  against pressure.
+- **Automatic self-calibration is off** (`ENABLE_ASC`). ASC assumes the sensor
+  sees ~400 ppm outdoor air for 4 uninterrupted hours weekly; a closed
+  air-conditioned room does not, and when that assumption fails ASC drags the
+  whole scale down — understating exactly the readings this is here to catch.
+  Recalibrate manually instead: serial command `c`, in fresh air, no sooner than
+  5 days after first powering the sensor. `i` prints status, `a` toggles ASC.
+
 ## Staying in sync
 
 Browsers freeze timers in background tabs — Firefox will suspend an unfocused tab

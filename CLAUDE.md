@@ -37,6 +37,7 @@ from `index.html`. No modules, so it still runs from `file://`.
 | `js/charts.js` | Chart.js time series; HTML/CSS heatmap, lead-lag bars, cohesion matrix, grouped bars, sparkline. |
 | `js/checkin.js` | The daily check-in UI, slot timing, backfill. |
 | `js/app.js` | Unlock, fetch, render, refresh recovery, settings dialog. |
+| `firmware/weather_station/` | ESP32 sketch: BME280 + SCD41 -> channel 3000045. |
 
 ### Data flow
 
