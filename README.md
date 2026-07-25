@@ -1,0 +1,192 @@
+# Weather & Migraine
+
+A personal dashboard that does two jobs at once: it shows live readings from a
+ThingSpeak-connected weather station, and it collects a ten-second daily symptom
+check-in — then looks for the relationship between them.
+
+Live at <https://luppa90.github.io/weather-dashboard/>.
+
+## Why it is built this way
+
+Counting headache days throws away most of the signal. This tracks the *cluster*
+instead — sound tolerance, light tolerance, fog, neck, fatigue, each 0–3 — plus a
+binary headache flag and a binary triptan flag. Three things fall out of that
+which a headache diary cannot give you:
+
+1. **Whether the five channels co-vary as a unit.** If they rise and fall
+   together, that is evidence of one underlying process rather than five
+   unrelated complaints.
+2. **How many days are genuinely clear.** Not "headache-free" — clear, meaning
+   every channel at zero. The gap between those two counts is usually large and
+   goes entirely unrecorded otherwise.
+3. **Whether the cluster leads or lags the headache.** Same-day correlation says
+   almost nothing. If the cluster rises 24–48h *before* a headache day and stays
+   elevated after it, that is a direct measurement of your own premonitory and
+   postdromal windows.
+
+Three design decisions follow from that and are load-bearing:
+
+- **Rate at a fixed time.** Stimulant offset produces a systematic afternoon dip
+  that would otherwise smear across every channel. Morning opens at 04:00 and
+  closes at 12:00; evening opens at 17:00 and closes at midnight. Once a window
+  closes the dashboard stops asking — a morning rating invented at 20:00 is worse
+  than a missing one, so it moves to the backfill row instead.
+- **Rate before looking.** The environment section stays blurred until the due
+  check-in is in, because seeing a pressure crash first will bias the rating that
+  is supposed to be independent evidence. There is a "show it anyway" escape.
+- **Ten seconds.** Typing `2 1 0 3 1 0 0` then Enter completes a check-in without
+  touching the mouse: digits set the focused row and advance to the next one.
+  There is an "All clear" button for the common case.
+
+## Running it
+
+Static files, no build step, no dependencies to install.
+
+```bash
+python3 -m http.server 8000     # then open http://localhost:8000
+```
+
+Opening `index.html` directly works too — the passcode uses WebCrypto, which is
+available on `file://` and `https://` but not on plain `http://` to a LAN address.
+
+## Passcode
+
+The dashboard is behind a passcode. **It is a gate, not encryption**: this is a
+static page, so anyone determined enough can read the source and skip it. What it
+does is stop the dashboard being readable by someone who simply lands on the URL.
+Your ratings never enter this repository — they live in this browser's
+localStorage, and (optionally) in your own private ThingSpeak channel.
+
+To change it:
+
+```bash
+node tools/set-passcode.mjs "your new passphrase"
+```
+
+That rewrites the generated block in `js/auth.js` with a fresh salt and a
+PBKDF2-SHA256 verifier. The passphrase itself is never written anywhere. Changing
+it logs out every device, since the unlock cookie holds the old verifier.
+
+The unlock cookie is set with a ten-year `Max-Age`, so unlocking is a once-per-
+device thing.
+
+## Cross-device sync (optional)
+
+Check-ins are saved locally first and always work offline. To keep a phone and a
+laptop in agreement — and to survive clearing browser data — point the dashboard
+at a second ThingSpeak channel:
+
+1. Create a new ThingSpeak channel with **8 fields**, and set it to **private**.
+2. Open Settings (the sliders icon) and paste the Channel ID, Write API key and
+   Read API key.
+3. Tick "Sync check-ins to this channel".
+
+Field mapping on that channel:
+
+| Field | Carries |
+|-------|---------|
+| field1–field5 | sound, light, fog, neck, fatigue (0–3) |
+| field6 | headache (0/1) |
+| field7 | triptan (0/1) |
+| field8 | slot (1 = morning, 2 = evening) |
+| status | `v1\|d=YYYY-MM-DD\|s=slot\|u=<epoch ms>\|n=<note>` |
+
+The logical day and slot travel in `status` rather than in `created_at`, so
+timestamps stay monotonically increasing (which ThingSpeak requires) while an
+edit still overwrites the right row — on read, the highest `u` per day+slot wins.
+Note text can be excluded from the sync with a checkbox if you would rather it
+stayed on one device.
+
+**The keys are stored only in your browser and are never committed here.** That
+is deliberate: this repo is public, so a read key in the source would make the
+symptom log public with it.
+
+Settings also has JSON and CSV export, and JSON import.
+
+## Weather station channel
+
+Channel `3000045`. The read key is in `js/config.js` and is inherently public in
+a static client app.
+
+| Field | Measure |
+|-------|---------|
+| field1 | temperature (°C) |
+| field2 | humidity (%) |
+| field3 | pressure (hPa) |
+| field4 | altitude — collected, unused |
+| field5 | CO₂ (ppm) — **reserved for the NDIR sensor** |
+
+Every CO₂ surface in the dashboard stays hidden until field5 actually reports a
+value, so nothing needs changing when the sensor goes in: publish to field5 and
+the tile, the chart and the fog-confound analysis appear on their own.
+
+CO₂ is in here for a specific reason. Elevated indoor CO₂ independently degrades
+cognition, and a closed air-conditioned room accumulates it fast — which makes it
+a genuine confound for the **fog** channel and only that channel. Being able to
+separate "fog at 2 with CO₂ at 1400" from "fog at 2 with CO₂ at 600" tells two
+mechanisms apart that would otherwise both be logged as a bad day. It is also a
+cerebral vasodilator, so the effect may not be purely cognitive.
+
+## Staying in sync
+
+Browsers freeze timers in background tabs — Firefox will suspend an unfocused tab
+outright — and laptops sleep. There are five independent routes back to fresh
+data, and the header pill always states how old what you are looking at is:
+
+- a self-rescheduling timer (60s visible, 5min hidden) with exponential backoff
+  on failure;
+- a one-second heartbeat that detects a scheduled refresh being long overdue,
+  which is how a frozen or slept tab is caught;
+- `visibilitychange` and `focus`, which refetch on return if the data is stale;
+- `pageshow` for a bfcache restore, whose timers come back dead;
+- the `online` event.
+
+Every request has a hard timeout, so a hung socket cannot stall the chain. The
+dashboard also distinguishes *our data being old* from *the station having gone
+quiet* — different problems needing different reactions.
+
+## Analysis, and what it refuses to do
+
+Each panel stays blank until it has enough data to support a number, and says
+what it is waiting for instead:
+
+| Panel | Needs |
+|-------|-------|
+| Genuinely clear days | 7 rated days |
+| Cluster cohesion | 14 days with all five channels rated |
+| Lead/lag | 21 rated days and 5 headache episodes |
+| CO₂ × fog | 10 days with both a check-in and CO₂ |
+| Pressure vs cluster | 14 rated days, and ≥5 days on each side of the split |
+
+Consecutive headache days count once, at onset, so a three-day migraine does not
+contribute three overlapping epochs and smear the very curve being resolved.
+
+## Layout
+
+```
+index.html          markup only
+style.css           chrome and layout
+js/config.js        thresholds, field maps, check-in schema, colour tokens
+js/util.js          DOM, local-calendar dates, formatting, statistics
+js/auth.js          passcode gate
+js/store.js         check-in storage, ThingSpeak sync, export/import
+js/weather.js       station data and the freshness engine
+js/analysis.js      cohesion, clarity, lead/lag, CO₂ confound, pressure link
+js/charts.js        Chart.js time series, plus HTML heatmap / bars / matrix
+js/checkin.js       the daily check-in UI
+js/app.js           unlock, fetch, render, refresh recovery
+tools/set-passcode.mjs
+```
+
+Plain scripts on a `window.WD` namespace, in dependency order — no bundler, and
+it still works from `file://`.
+
+Chart colours are not hand-picked. Symptom severity is one ordinal blue ramp
+(level 0 is not a step — a clear day is an empty cell); each environment measure
+keeps its own hue everywhere it appears; status colours mean only good→critical
+and always ship with an icon and a label. The exact steps and the validator runs
+behind them are documented in `js/config.js`.
+
+---
+
+Personal tracking aid, not medical advice.
