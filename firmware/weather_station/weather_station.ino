@@ -21,6 +21,7 @@
  *   c   forced recalibration in fresh air  (see notes at performFrc)
  *   a   toggle automatic self-calibration
  *   x   rescan the I2C bus
+ *   w   list the WiFi networks the radio can hear
  */
 
 #include <WiFi.h>
@@ -122,6 +123,7 @@ void toggleAsc();
 void printStatus();
 void handleSerial();
 void scanI2C();
+void scanWiFi();
 
 static char scdErrMsg[64];
 
@@ -362,6 +364,7 @@ void handleSerial() {
     case 'a': toggleAsc(); break;
     case 'i': printStatus(); break;
     case 'x': scanI2C(); break;
+    case 'w': scanWiFi(); break;
     default: break;
   }
 }
@@ -435,7 +438,7 @@ void setup() {
   applyClientTimeout();
   lastSuccessfulPostMs = millis();
   Serial.println("ThingSpeak communication initialized.");
-  Serial.println("Serial commands: i = status, x = scan I2C, c = recalibrate CO2, a = toggle ASC");
+  Serial.println("Serial commands: i = status, x = scan I2C, w = scan WiFi, c = recalibrate CO2, a = toggle ASC");
 }
 
 // ---------------------------------------------------------------------- loop
@@ -554,6 +557,45 @@ void loop() {
                 (int)WiFi.RSSI(), (unsigned long)ESP.getFreeHeap());
 }
 
+/* Lists every access point the radio can actually hear.
+ *
+ * This is the one measurement that separates the three causes of a
+ * "NO_AP_FOUND" (reason 201) failure, which otherwise all look identical:
+ *   - your network listed, decent signal  -> not the radio; look at the
+ *     password, the band, or AP-side client limits
+ *   - other networks listed, yours absent -> the AP is down, renamed, or has
+ *     dropped off 2.4 GHz (the ESP32 cannot see 5 GHz at all)
+ *   - nothing listed                      -> the radio itself is impaired:
+ *     brownout from an inadequate supply, or something detuning the antenna
+ */
+void scanWiFi() {
+  Serial.println("Scanning for WiFi networks (a few seconds)...");
+  int found = WiFi.scanNetworks();
+
+  if (found <= 0) {
+    Serial.println("  NOTHING found at all.");
+    Serial.println("  The radio cannot hear any network, not just yours. That points at");
+    Serial.println("  power (try a 1A+ charger rather than a PC USB port) or at something");
+    Serial.println("  sitting against the ESP32's antenna.");
+    return;
+  }
+
+  Serial.printf("  %d network(s):\n", found);
+  bool sawOurs = false;
+  for (int i = 0; i < found; i++) {
+    bool ours = WiFi.SSID(i) == String(ssid);
+    sawOurs |= ours;
+    Serial.printf("  %-32s ch%-3d %4d dBm%s\n",
+                  WiFi.SSID(i).c_str(), (int)WiFi.channel(i), (int)WiFi.RSSI(i),
+                  ours ? "   <- yours" : "");
+  }
+  if (!sawOurs) {
+    Serial.printf("  '%s' is NOT among them. Check the AP is on, still has that\n", ssid);
+    Serial.println("  exact name, and is broadcasting on 2.4 GHz — the ESP32 cannot see 5 GHz.");
+  }
+  WiFi.scanDelete();
+}
+
 void connectWiFi(bool verbose) {
   if (verbose) {
     Serial.print("Connecting to WiFi: ");
@@ -571,8 +613,17 @@ void connectWiFi(bool verbose) {
       Serial.print("IP Address: ");
       Serial.println(WiFi.localIP());
     }
-  } else {
-    Serial.println("\nWiFi connect timeout. Will retry in loop.");
+    return;
+  }
+
+  Serial.println("\nWiFi connect timeout. Will retry in loop.");
+
+  // Diagnose once per boot rather than on every retry: the scan is slow and
+  // the answer will not change from one attempt to the next.
+  static bool scannedOnce = false;
+  if (!scannedOnce) {
+    scannedOnce = true;
+    scanWiFi();
   }
 }
 
