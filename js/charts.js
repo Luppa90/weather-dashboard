@@ -186,17 +186,35 @@ WD.charts = (function () {
      * columns, which is the number the whole exercise is trying to establish. */
     function clusterHeatmap(container, days, { showTable = true } = {}) {
         clear(container);
-        const visible = days.slice(-WD.CFG.ANALYSIS.heatmapDays);
+        let visible = days.slice(-WD.CFG.ANALYSIS.heatmapDays);
 
         if (!visible.some(d => !d.missing)) {
             container.appendChild(el('p', { class: 'empty', text: 'Your first check-ins will show up here.' }));
             return;
         }
 
+        /* Always draw a minimum span, padding the left with not-yet-tracked
+         * days. Without it the first week renders as one or two columns
+         * stretched across the whole card, which reads as a solid block rather
+         * than as a calendar. */
+        const MIN_COLUMNS = 14;
+        if (visible.length < MIN_COLUMNS) {
+            const pad = [];
+            for (let i = MIN_COLUMNS - visible.length; i > 0; i--) {
+                pad.push({
+                    day: WD.util.addDays(visible[0].day, -i),
+                    ratings: {}, cluster: null, headache: false, triptan: false, missing: true,
+                });
+            }
+            visible = pad.concat(visible);
+        }
+
         const grid = el('div', { class: 'heatmap' });
-        // repeat() will not take a custom property as its count, so the column
-        // template is set here rather than in the stylesheet.
-        const template = `repeat(${visible.length}, minmax(9px, 1fr))`;
+        /* repeat() will not take a custom property as its count, so the column
+         * template is set here. The 24px ceiling is what keeps a cell square:
+         * with `1fr` a lone column expands to the full card width, and
+         * aspect-ratio then makes it just as tall. */
+        const template = `repeat(${visible.length}, minmax(9px, 24px))`;
 
         const addRow = (label, iconName, cells, extraClass = '') => {
             grid.appendChild(el('div', { class: `heat-label ${extraClass}` }, [
@@ -255,14 +273,23 @@ WD.charts = (function () {
         });
         addRow('Headache', 'fa-bolt', eventCells, 'is-event');
 
-        container.appendChild(grid);
+        /* Date ruler: only the two ends — a label per column would be
+         * unreadable at 45 of them. It lives inside the same grid, on the same
+         * column template, so the labels sit under the actual first and last
+         * cells instead of at the edges of whatever width is going spare. */
+        grid.appendChild(el('div', { class: 'heat-label' }));
+        const ruler = el('div', { class: 'heat-ruler', style: { gridTemplateColumns: template } });
+        ruler.appendChild(el('span', {
+            style: { gridColumn: '1' },
+            text: formatDayLabel(visible[0].day, { weekday: false }),
+        }));
+        ruler.appendChild(el('span', {
+            style: { gridColumn: String(visible.length), justifySelf: 'end' },
+            text: formatDayLabel(visible[visible.length - 1].day, { weekday: false }),
+        }));
+        grid.appendChild(ruler);
 
-        // Date ruler: first, last and roughly-monthly ticks only — a label per
-        // column would be unreadable at 45 columns.
-        const ruler = el('div', { class: 'heat-ruler' });
-        ruler.appendChild(el('span', { text: formatDayLabel(visible[0].day, { weekday: false }) }));
-        ruler.appendChild(el('span', { text: formatDayLabel(visible[visible.length - 1].day, { weekday: false }) }));
-        container.appendChild(ruler);
+        container.appendChild(grid);
 
         container.appendChild(legend([
             { swatch: 'transparent', label: '0 none', outline: true },
