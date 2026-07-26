@@ -281,6 +281,33 @@ kbd {
 }
 .gate-note i { color: var(--warning); margin-top: 3px; }
 
+/* Idle state: nothing is open to rate, so the card is one line until asked. */
+.checkin.is-idle { padding: 0; }
+.checkin.is-idle::before { display: none; }
+
+.checkin-collapsed {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 14px 20px; background: none; border: none; cursor: pointer;
+    font: inherit; color: var(--ink); text-align: left;
+    border-radius: var(--radius);
+}
+.checkin-collapsed:hover { background: var(--surface-2); }
+.collapsed-icon { color: var(--ink-muted); font-size: .875rem; }
+.collapsed-text { display: flex; flex-direction: column; min-width: 0; }
+.collapsed-text strong { font-size: .9375rem; font-weight: 600; }
+.collapsed-when { color: var(--ink-muted); font-size: .8125rem; }
+.collapsed-done {
+    display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+    color: var(--good); font-size: .8125rem; white-space: nowrap;
+}
+.collapsed-done i { font-size: .75rem; }
+.checkin-collapsed .streak { flex-shrink: 0; }
+.checkin-collapsed .collapsed-done + .streak { margin-left: 0; }
+.checkin-collapsed .streak:first-of-type:not(.collapsed-done + .streak) { margin-left: auto; }
+.collapsed-chevron { color: var(--ink-muted); font-size: .75rem; flex-shrink: 0; }
+
+.checkin.is-idle .done-summary { padding: 4px 20px 20px; border-top: 1px solid var(--grid); margin-top: 0; padding-top: 16px; }
+
 .done-summary { display: flex; flex-direction: column; gap: 10px; }
 .done-slot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .done-slot-name {

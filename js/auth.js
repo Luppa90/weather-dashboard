@@ -83,6 +83,11 @@ WD.auth = (function () {
             const overlay = $('#lock-screen');
 
             if (isUnlocked()) {
+                // The class is in the markup so the page never flashes before
+                // the gate paints. Clearing it here matters: `locked` carries
+                // `overflow: hidden`, so leaving it on made the whole page
+                // unscrollable on every visit after the first.
+                document.body.classList.remove('locked');
                 overlay.remove();
                 resolve();
                 return;

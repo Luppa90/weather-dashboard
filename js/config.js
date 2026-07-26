@@ -74,12 +74,16 @@ WD.CFG = (function () {
      * The binary flags are the deliberate exception: they ask "has this
      * happened today", so a headache that came and went between slots is not
      * missed. They are OR-ed across the day in store.byDay(). */
+    /* One window per slot, and rating is only possible inside it. There is no
+     * "open early" grace period: rating the evening at 17:00 on one day and
+     * 21:00 on the next measures two different things, and that inconsistency
+     * is the noise the fixed times exist to remove. */
     const SLOTS = [
         { key: 'morning', label: 'Morning', code: 1, icon: 'fa-mug-hot',
-          opensAt: 4 * 60, dueFrom: 6 * 60, closesAt: 12 * 60,
+          opensAt: 4 * 60, closesAt: 12 * 60,
           blurb: 'Rate how you feel right now, on waking.' },
         { key: 'evening', label: 'Evening', code: 2, icon: 'fa-moon',
-          opensAt: 17 * 60, dueFrom: 19 * 60, closesAt: 24 * 60 - 1,
+          opensAt: 19 * 60, closesAt: 24 * 60 - 1,
           blurb: 'Rate how you feel right now — not the day as a whole.' },
     ];
 

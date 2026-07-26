@@ -24,6 +24,7 @@ WD.checkin = (function () {
     let draft = null;      // { day, slot, ratings, headache, triptan, note }
     let editing = null;    // { day, slot } when working on something other than "now"
     let peeked = false;    // the reader chose to see the data before rating
+    let expanded = false;  // idle card manually opened to review or edit today
     const onSaved = new Set();
 
     // --------------------------------------------------------------- timing
@@ -38,9 +39,19 @@ WD.checkin = (function () {
         for (const slot of [...SLOTS].reverse()) {
             if (m < slot.opensAt || m > slot.closesAt) continue;
             if (WD.store.get(today, slot.key)) continue;
-            return { day: today, slot, state: m >= slot.dueFrom ? 'due' : 'early' };
+            return { day: today, slot, state: 'due' };
         }
         return null;
+    }
+
+    /* The next window that has not opened yet — what the collapsed card
+     * announces while there is nothing to rate. */
+    function nextWindow() {
+        const m = minutesOfDay();
+        for (const slot of SLOTS) {
+            if (m < slot.opensAt) return { slot, when: `from ${formatClock(slot.opensAt)}` };
+        }
+        return { slot: SLOTS[0], when: `tomorrow, from ${formatClock(SLOTS[0].opensAt)}` };
     }
 
     function currentTarget() {
@@ -84,7 +95,7 @@ WD.checkin = (function () {
 
         if (target.state === 'done') {
             draft = null;
-            container.appendChild(doneCard());
+            container.appendChild(idleCard());
         } else {
             if (!draft || draft.day !== target.day || draft.slot !== target.slot.key) {
                 startDraft(target.day, target.slot.key);
@@ -367,34 +378,47 @@ WD.checkin = (function () {
         notifyChanged();
     }
 
-    // ------------------------------------------------------------ done card
-    function doneCard() {
+    // ------------------------------------------------------------ idle card
+    /* No window is open, so there is nothing to do — collapse to one line.
+     * Expanding shows what was logged today and lets it be corrected. */
+    function idleCard() {
         const today = dayKey();
-        const m = minutesOfDay();
-        const card = el('section', { class: 'card checkin is-done' });
         const doneToday = SLOTS.map(s => ({ slot: s, entry: WD.store.get(today, s.key) })).filter(x => x.entry);
-        // Only a slot that has not opened yet counts as "next" — one whose
-        // window has already passed belongs in the backfill row.
-        const next = SLOTS.find(s => !WD.store.get(today, s.key) && m < s.opensAt);
+        const next = nextWindow();
 
-        card.appendChild(el('header', { class: 'checkin-head' }, [
-            el('div', { class: 'checkin-title-wrap' }, [
-                el('h2', {}, [icon('fa-circle-check', 'ok'), el('span', {
-                    text: doneToday.length ? 'Check-in done' : 'Nothing due right now',
-                })]),
-                el('p', {
-                    class: 'checkin-blurb',
-                    text: next
-                        ? `Next one: ${next.label.toLowerCase()}, from ${formatClock(next.dueFrom)}.`
-                        : doneToday.length === SLOTS.length
-                            ? 'Both slots in for today. Nothing else to do.'
-                            : 'Nothing more to rate today.',
-                }),
+        const card = el('section', { class: `card checkin is-idle${expanded ? ' is-expanded' : ''}` });
+
+        card.appendChild(el('button', {
+            type: 'button',
+            class: 'checkin-collapsed',
+            'aria-expanded': expanded ? 'true' : 'false',
+            onclick: () => { expanded = !expanded; render(); },
+        }, [
+            icon(next.slot.icon, 'collapsed-icon'),
+            el('span', { class: 'collapsed-text' }, [
+                el('strong', { text: `Next: ${next.slot.label.toLowerCase()} check-in` }),
+                el('span', { class: 'collapsed-when', text: next.when }),
             ]),
+            doneToday.length
+                ? el('span', { class: 'collapsed-done' }, [
+                    icon('fa-circle-check'),
+                    el('span', { text: `${doneToday.length} of ${SLOTS.length} today` }),
+                ])
+                : null,
             streakChip(),
+            icon(expanded ? 'fa-chevron-up' : 'fa-chevron-down', 'collapsed-chevron'),
         ]));
 
+        if (expanded) card.appendChild(doneSummary(doneToday));
+        return card;
+    }
+
+    function doneSummary(doneToday) {
         const summary = el('div', { class: 'done-summary' });
+        if (!doneToday.length) {
+            summary.appendChild(el('p', { class: 'empty', text: 'Nothing logged today yet.' }));
+            return summary;
+        }
         for (const { slot, entry } of doneToday) {
             const chips = CHANNELS.map(channel => {
                 const value = entry.ratings[channel.key];
@@ -410,17 +434,18 @@ WD.checkin = (function () {
                 entry.triptan ? el('span', { class: 'badge badge-serious' }, [icon('fa-pills'), el('span', { text: 'Triptan' })]) : null,
                 el('button', {
                     type: 'button', class: 'link-btn',
-                    onclick: () => { editing = { day: today, slot: slot.key }; render(); },
+                    onclick: () => editEntry(dayKey(), slot.key),
                 }, [el('span', { text: 'Edit' })]),
             ]));
         }
-        card.appendChild(summary);
-        return card;
+        return summary;
     }
 
+    // A span rather than a div: this sits inside the collapsed header button,
+    // which may only contain phrasing content.
     function streakChip() {
         const days = WD.store.streak();
-        return el('div', {
+        return el('span', {
             class: `streak${days >= 3 ? ' hot' : ''}`,
             title: 'Consecutive days with at least one check-in',
         }, [
