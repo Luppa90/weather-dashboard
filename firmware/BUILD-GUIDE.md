@@ -4,6 +4,11 @@ Step by step, from loose parts to a working station. Allow about two hours the
 first time. Nothing here is difficult, but two mistakes can destroy a sensor, so
 they are called out in bold where they can happen.
 
+**The ESP32 does not go on the prototype board.** Only the two sensor sockets,
+the screw terminals and the capacitors do. The ESP32 stays on its jumper wires,
+which keeps its USB port reachable and means it can be pulled out and reflashed
+without desoldering anything.
+
 **The one rule: wire by the printed label, never by pin position.** Your two
 sensors do not use the same pin order.
 
@@ -76,18 +81,44 @@ out to have bare holes as well, cut a second male piece for it.
 
 This is the only soldering that happens on a sensor, so take it slowly.
 
-1. Push the male header into the SCD41's four holes with the **long pins
-   pointing down**, away from the side with the components on it. The short
-   pins and the black plastic sit against the board.
-2. Turn it over so the board lies flat with four pin-tips poking up.
-3. **Solder one pin only.** Touch the iron so it heats the pin and the ring of
-   metal around the hole at the same time, count one-two, then feed solder in
-   against the joint — not onto the iron tip. Remove the solder first, then the
-   iron.
+**Which way round.** The black plastic goes against the **plain back face** —
+the one without the big sensor package on it. Get this backwards and the plastic
+cannot sit flush, because the package is in the way.
+
+The quickest check is to hold your BME280 next to it and copy the arrangement:
+plastic on the back, long pins pointing down, components facing up, solder blobs
+on the component side.
+
+```
+   how it should end up, plugged into its socket:
+
+        ┌──────────────┐
+        │  ▓▓▓▓▓▓      │ ← SCD41 package, facing UP into the room
+        └──┬─┬─┬─┬─────┘   ← solder the little stubs on THIS face
+           │ │ │ │
+        ▐██╪═╪═╪═╪██▌      ← black plastic flat against the plain back
+           ║ ║ ║ ║
+           ▼ ▼ ▼ ▼         ← long pins down into the socket
+```
+
+It has to end up with the sensor facing up into the room: the SCD41 reads the
+air that reaches its opening, and pointing it down into the gap above the hub
+board leaves it sampling a stale pocket and responding slowly.
+
+1. Push the header into the four holes from the plain back, plastic flat against
+   that face, long pins pointing away from the components.
+2. Turn the board component-side-up. Only **1–2 mm of each pin will poke
+   through** — that is correct and all you need. What makes the joint is solder
+   flowing into the plated hole and wetting the copper ring, not the length of
+   pin sticking out.
+3. **Solder one pin only.** Heat the pin and the ring of copper around the hole
+   at the same time, count one-two, then feed solder in against the joint — not
+   onto the iron tip. Remove the solder first, then the iron.
 4. Look at it from the side. Is the header square against the board? If it is
    leaning, reheat that single joint and straighten it while the solder is
    liquid. This is why you only did one.
-5. Once it sits square, solder the other three.
+5. Once it sits square, solder the other three. Keep the iron tip on the pin and
+   off the sensor package next door.
 
 A good joint is a small shiny cone that has flowed onto both the pin and the
 ring. A dull grey ball perched on top has not bonded — reheat it, and add a
