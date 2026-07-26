@@ -683,8 +683,11 @@ footer {
 }
 
 @media (min-width: 1024px) {
+    /* An even 2x2. Pressure used to span the full width on the grounds that it
+       is the measure with the clearest line to a migraine, but a wide card next
+       to three narrow ones reads as a hierarchy that is not really there — and
+       the chart it made was mostly empty, because pressure moves over days. */
     .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .chart-grid .chart-card:first-child { grid-column: 1 / -1; }
     .chart-box { height: 260px; }
 }
 

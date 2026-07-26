@@ -69,9 +69,11 @@
                     <p class="section-sub">Live from the station. Barometric pressure and indoor CO₂ are the two measures with a plausible direct line to how you feel.</p>
                 </div>
                 <div id="range-toggle" class="range-toggle" role="group" aria-label="Chart time range">
+                    <button data-range="1h"  class="range-btn" type="button" aria-pressed="false">1h</button>
+                    <button data-range="4h"  class="range-btn active" type="button" aria-pressed="true">4h</button>
                     <button data-range="24h" class="range-btn" type="button" aria-pressed="false">24h</button>
                     <button data-range="3d"  class="range-btn" type="button" aria-pressed="false">3d</button>
-                    <button data-range="7d"  class="range-btn active" type="button" aria-pressed="true">7d</button>
+                    <button data-range="7d"  class="range-btn" type="button" aria-pressed="false">7d</button>
                     <button data-range="30d" class="range-btn" type="button" aria-pressed="false">30d</button>
                 </div>
             </div>
@@ -80,11 +82,14 @@
             <div id="co2-note" class="inline-note" hidden></div>
             <div id="risk-banner" class="risk-banner"></div>
 
+            <!-- Two by two, all four the same size. Temperature and CO2 on the
+                 top row because those are the two that move on the timescale
+                 you are usually looking at this for; pressure is last because
+                 it is the slowest, not because it matters least. -->
             <div class="chart-grid">
                 <article class="card chart-card">
-                    <h3><i class="fas fa-gauge-high" aria-hidden="true"></i> Barometric pressure <small>hPa</small></h3>
-                    <p class="chart-note">Shaded columns are headache days.</p>
-                    <div class="chart-box"><canvas id="pressure-chart"></canvas></div>
+                    <h3><i class="fas fa-temperature-half" aria-hidden="true"></i> Temperature <small>°C</small></h3>
+                    <div class="chart-box"><canvas id="temperature-chart"></canvas></div>
                 </article>
                 <article class="card chart-card" id="co2-card" hidden>
                     <h3><i class="fas fa-wind" aria-hidden="true"></i> Indoor CO₂ <small>ppm</small></h3>
@@ -92,12 +97,13 @@
                     <div class="chart-box"><canvas id="co2-chart"></canvas></div>
                 </article>
                 <article class="card chart-card">
-                    <h3><i class="fas fa-temperature-half" aria-hidden="true"></i> Temperature <small>°C</small></h3>
-                    <div class="chart-box"><canvas id="temperature-chart"></canvas></div>
-                </article>
-                <article class="card chart-card">
                     <h3><i class="fas fa-droplet" aria-hidden="true"></i> Humidity <small>%</small></h3>
                     <div class="chart-box"><canvas id="humidity-chart"></canvas></div>
+                </article>
+                <article class="card chart-card">
+                    <h3><i class="fas fa-gauge-high" aria-hidden="true"></i> Barometric pressure <small>hPa</small></h3>
+                    <p class="chart-note">Shaded columns are headache days.</p>
+                    <div class="chart-box"><canvas id="pressure-chart"></canvas></div>
                 </article>
             </div>
 

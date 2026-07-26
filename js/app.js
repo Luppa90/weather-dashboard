@@ -313,7 +313,10 @@ WD.app = (function () {
     function renderCharts() {
         const cfg = RANGES[weather.state.currentRange];
         const feeds = weather.state.range;
-        const gapMs = cfg.average * 60 * 1000 * 3;
+        // Three missed points in a row is an outage worth breaking the line
+        // over. `step` rather than `average` because the short ranges are
+        // unaveraged, and there `step` is the 30s posting interval.
+        const gapMs = cfg.step * 60 * 1000 * 3;
         const field = (name) => WD.CFG.WEATHER.fields[name];
 
         const from = feeds.length ? new Date(feeds[0].created_at) : new Date();

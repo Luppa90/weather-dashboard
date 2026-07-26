@@ -10,7 +10,7 @@
 window.WD = window.WD || {};
 
 WD.weather = (function () {
-    const { weatherBase, WEATHER, RANGES, RISK, CO2_BANDS, REFRESH } = WD.CFG;
+    const { weatherBase, WEATHER, RANGES, DEFAULT_RANGE, RISK, CO2_BANDS, REFRESH } = WD.CFG;
     const { getJSON, dayKey, mean } = WD.util;
 
     const F = WEATHER.fields;
@@ -26,7 +26,7 @@ WD.weather = (function () {
         sensorAt: null,        // when the station last reported
         lastSuccessAt: null,   // when we last got data
         error: null,
-        currentRange: '7d',
+        currentRange: DEFAULT_RANGE,
     };
 
     let dailyFetchedAt = 0;
@@ -38,14 +38,28 @@ WD.weather = (function () {
         return isFinite(v) ? v : null;
     };
 
-    /* [{ t: Date, v: Number }] for one field, dropping unparseable rows. */
+    /* Readings a sensor cannot legitimately produce.
+     *
+     * A failed I2C read does not raise an error, it returns a number, so a bad
+     * row is indistinguishable from a real one except by being impossible.
+     * These are dropped everywhere — the tiles, the charts and the trend —
+     * because a spike that is filtered out of the arithmetic but still drawn
+     * on the chart is arguably worse than one that is drawn nowhere. */
+    const PLAUSIBLE = {
+        [F.pressure]: (v) => v >= RISK.saneMin && v <= RISK.saneMax,
+    };
+
+    const implausible = (field, v) => PLAUSIBLE[field] ? !PLAUSIBLE[field](v) : false;
+
+    /* [{ t: Date, v: Number }] for one field, dropping unparseable and
+     * physically impossible rows. */
     function series(feeds, field) {
         if (!feeds) return [];
         const out = [];
         for (const feed of feeds) {
             if (!feed.created_at) continue;
             const v = numOr(feed[field]);
-            if (v === null) continue;
+            if (v === null || implausible(field, v)) continue;
             out.push({ t: new Date(feed.created_at), v });
         }
         return out;
@@ -81,7 +95,8 @@ WD.weather = (function () {
         const newestWith = (field) => {
             for (let i = feeds.length - 1; i >= 0; i--) {
                 const v = numOr(feeds[i][field]);
-                if (v !== null) return { v, at: new Date(feeds[i].created_at) };
+                if (v === null || implausible(field, v)) continue;
+                return { v, at: new Date(feeds[i].created_at) };
             }
             return null;
         };
@@ -125,7 +140,11 @@ WD.weather = (function () {
 
     async function fetchRange() {
         const cfg = RANGES[state.currentRange];
-        const data = await getJSON(url(`days=${cfg.days}&average=${cfg.average}`), REFRESH.fetchTimeoutMs);
+        // Sub-day windows ask in minutes; ThingSpeak rounds `days` to whole
+        // days, so `days=0.04` would quietly return a full day of readings.
+        const span = cfg.minutes ? `minutes=${cfg.minutes}` : `days=${cfg.days}`;
+        const avg = cfg.average ? `&average=${cfg.average}` : '';
+        const data = await getJSON(url(`${span}${avg}`), REFRESH.fetchTimeoutMs);
         state.range = (data?.feeds || []).filter(f => f.created_at);
     }
 
@@ -180,21 +199,47 @@ WD.weather = (function () {
     }
 
     // -------------------------------------------------------------- pressure
-    /* Change over the last `hours`, against the reading closest to that moment.
-     * Returns null when history does not reach back far enough, rather than
-     * quietly comparing against whatever the oldest reading happens to be. */
+    /* The median reading within `anchorWindowMin` of `at`, or null if too few
+     * survive there to be worth trusting.
+     *
+     * A median rather than a mean: the point is to be unmoved by a single bad
+     * row, and a mean is moved by exactly one. The plausibility filter in
+     * series() already removes the impossible ones, but it cannot catch a
+     * merely-wrong reading that happens to land inside the legal range. */
+    function medianNear(points, at, windowMs) {
+        const near = points
+            .filter(p => Math.abs(p.t.getTime() - at) <= windowMs)
+            .map(p => p.v)
+            .sort((a, b) => a - b);
+        if (near.length < RISK.minAnchorSamples) return null;
+        const mid = Math.floor(near.length / 2);
+        return near.length % 2 ? near[mid] : (near[mid - 1] + near[mid]) / 2;
+    }
+
+    /* Change over the last `hours`, as the difference between two medians.
+     *
+     * Returns null when there is no usable history at that distance back,
+     * rather than quietly differencing against whatever reading happens to be
+     * nearest. That matters most after an outage: the reading closest to "24h
+     * ago" can be hours off and still get reported as a 24h change. */
     function changeOver(points, hours) {
-        const last = points[points.length - 1];
-        const target = last.t.getTime() - hours * 3600 * 1000;
-        let best = null;
-        for (const p of points) {
-            if (!best || Math.abs(p.t - target) < Math.abs(best.t - target)) best = p;
-        }
-        if (!best || Math.abs(best.t - target) > 2 * 3600 * 1000) return null;
-        return last.v - best.v;
+        if (!points.length) return null;
+        const last = points[points.length - 1].t.getTime();
+        const windowMs = RISK.anchorWindowMin * 60000;
+        const now = medianNear(points, last, windowMs);
+        const then = medianNear(points, last - hours * 3600 * 1000, windowMs);
+        if (now === null || then === null) return null;
+        return now - then;
     }
 
     function assessRisk(change3h, change24h) {
+        /* With neither window usable there is nothing to report. Falling
+         * through to "Settled" here would state that pressure is steady on the
+         * strength of no evidence at all, which is the one reading of this
+         * banner that must never be wrong — it is the one that says a bad day
+         * is not pressure's doing. */
+        if (change3h === null && change24h === null) return null;
+
         const a3 = change3h === null ? 0 : Math.abs(change3h);
         const a24 = change24h === null ? 0 : Math.abs(change24h);
 
@@ -205,11 +250,16 @@ WD.weather = (function () {
             level = 'moderate'; status = 'warning'; label = 'Shifting';
         }
 
-        const direction = (change24h ?? change3h ?? 0) < 0 ? 'falling' : 'rising';
+        const direction = (change24h ?? change3h) < 0 ? 'falling' : 'rising';
+        // Only quote a window that actually produced a number, so a missing
+        // 24h figure reads as absent rather than as a change of zero.
+        const parts = [];
+        if (change3h !== null) parts.push(`${WD.util.signed(change3h, 1, ' hPa')} over 3h`);
+        if (change24h !== null) parts.push(`${WD.util.signed(change24h, 1, ' hPa')} over 24h`);
+
         const detail = level === 'low'
             ? 'Barometric pressure is steady. If today is a bad day, pressure is probably not why.'
-            : `Pressure is ${direction} — ${WD.util.signed(change3h, 1, ' hPa')} over 3h, `
-              + `${WD.util.signed(change24h, 1, ' hPa')} over 24h. Rapid change in either direction is `
+            : `Pressure is ${direction} — ${parts.join(', ')}. Rapid change in either direction is `
               + 'among the most-reported migraine triggers.';
 
         return { level, status, label, detail, direction };

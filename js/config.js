@@ -118,6 +118,27 @@ WD.CFG = (function () {
         change3hHigh: 5,
         change24hModerate: 5,  // hPa over 24h
         change24hHigh: 8,
+
+        /* A failed I2C read on the BME280 returns a wild number rather than an
+         * error, so the channel carries the occasional physically impossible
+         * row — 679 hPa is the pressure at about 3,200 m. One of those landing
+         * on the 24h anchor is what produced a "+156.3 hPa over 24h" banner.
+         *
+         * The bounds are the global records for sea-level pressure (870 hPa in
+         * Typhoon Tip, 1084.8 hPa at Agata), so anything outside them is the
+         * sensor lying, never the weather. */
+        saneMin: 870,
+        saneMax: 1085,
+
+        /* Each end of a pressure change is the median of the readings within
+         * this many minutes of the anchor, rather than the single nearest one.
+         *
+         * Taking one sample per end is what made the banner flip between
+         * "rising" and "settled" every refresh: which reading sits nearest the
+         * 24h mark changes as the clock moves, so one bad row alternately did
+         * and did not get picked, with nothing about the weather changing. */
+        anchorWindowMin: 30,
+        minAnchorSamples: 2,
     };
 
     // Indoor CO2 bands. Above ~1000ppm CO2 independently degrades cognition,
@@ -130,8 +151,24 @@ WD.CFG = (function () {
      * point the window is only costing you cool air.
      *
      * Thresholds are in ppm/min, fitted over the last few minutes of 30s
-     * samples. A closed room with one person in it climbs at roughly
-     * +7 ppm/min, which is what clears the badge again once the window shuts. */
+     * samples. The figures below are measured off this room on 2026-07-26
+     * rather than guessed, which is worth keeping accurate because the whole
+     * ventilation strategy is derived from them:
+     *
+     *   climbing   +4.2 ppm/min with the door and window shut and one person
+     *              in the room (665 -> 1011 ppm over 82 unbroken minutes).
+     *              That is ~250 ppm/h, so a fully aired room is back past
+     *              800 ppm in about 75 minutes and past 1000 in about two
+     *              hours. An earlier note here said +7 ppm/min; that was a
+     *              guess, and it was high.
+     *   clearing   about -38 ppm/min at the start of a wide-open cross-draft,
+     *              decaying exponentially as the room approaches outdoor.
+     *              Fitted air exchange ~14 room volumes per hour.
+     *   floor      487 ppm, against roughly 425 ppm outdoors.
+     *
+     * fallingSlope sits well inside the measured -38 because it has to hold
+     * true near the *end* of an air-out, not at the start, and climbingSlope
+     * well inside +4.2 so a slow refill still clears the badge. */
     const AIRING = {
         slopeWindowMs: 4 * 60000,   // regression window
         lookbackMs: 25 * 60000,     // how far back to look for the peak
@@ -148,14 +185,39 @@ WD.CFG = (function () {
         { max: Infinity, key: 'veryHigh', label: 'Very high', status: 'critical', note: 'Ventilate now. Treat today\'s fog rating as confounded.' },
     ];
 
-    // Chart ranges for the environment section. ThingSpeak averages server-side
-    // (in minutes) so long ranges stay readable instead of showing 30s noise.
+    /* Chart ranges for the environment section. ThingSpeak averages
+     * server-side (in minutes) so the long ranges stay readable instead of
+     * showing 30s noise.
+     *
+     * The two short ranges deliberately do not average at all. Indoors, the
+     * things worth looking at happen on a timescale that 10-minute buckets
+     * destroy: a room airing out drops 500 ppm in twelve minutes, and at one
+     * point per bucket that is two samples and a straight line between them.
+     * Unaveraged, 4h is ~480 points and 1h is ~120, both of which a line chart
+     * draws happily.
+     *
+     * `average` is only honoured by ThingSpeak for 10, 15, 20, 30, 60, 240,
+     * 720 and 1440. Any other value is *silently ignored* and you get raw rows
+     * back with no indication that the parameter did nothing, so leave it null
+     * when the intent is raw rather than inventing a smaller bucket.
+     *
+     * `step` is the expected spacing between points in minutes, which is what
+     * decides how big a hole in the data has to be before the line breaks over
+     * it rather than drawing across it. For the unaveraged ranges that is the
+     * station's 30s posting interval. */
     const RANGES = {
-        '24h': { days: 1,  average: 10,  unit: 'hour', display: 'HH:mm', label: '24 hours' },
-        '3d':  { days: 3,  average: 30,  unit: 'day',  display: 'MMM d', label: '3 days' },
-        '7d':  { days: 7,  average: 60,  unit: 'day',  display: 'MMM d', label: '7 days' },
-        '30d': { days: 30, average: 240, unit: 'day',  display: 'MMM d', label: '30 days' },
+        '1h':  { minutes: 60,  average: null, step: 0.5, unit: 'minute', display: 'HH:mm', label: '1 hour' },
+        '4h':  { minutes: 240, average: null, step: 0.5, unit: 'hour',   display: 'HH:mm', label: '4 hours' },
+        '24h': { days: 1,      average: 10,   step: 10,  unit: 'hour',   display: 'HH:mm', label: '24 hours' },
+        '3d':  { days: 3,      average: 30,   step: 30,  unit: 'day',    display: 'MMM d', label: '3 days' },
+        '7d':  { days: 7,      average: 60,   step: 60,  unit: 'day',    display: 'MMM d', label: '7 days' },
+        '30d': { days: 30,     average: 240,  step: 240, unit: 'day',    display: 'MMM d', label: '30 days' },
     };
+
+    /* Opening view. Short on purpose: the reason to look at this dashboard is
+     * almost always "what is the room doing right now", and a 7-day window
+     * answers that by flattening the last hour into three pixels. */
+    const DEFAULT_RANGE = '4h';
 
     // ------------------------------------------------------------- refresh
     const REFRESH = {
@@ -210,11 +272,20 @@ WD.CFG = (function () {
         severity: [null, '#256abf', '#5598e7', '#b7d3f6'],
         severityInk: [null, '#ffffff', '#0b0b0b', '#0b0b0b'], // digit ink, all >= 4.5:1
 
-        // Environment measures. Colour follows the measure everywhere it appears.
+        /* Environment measures. Colour follows the measure everywhere it
+         * appears.
+         *
+         * Temperature takes the warm red, CO2 the amber, humidity a cyan.
+         * Humidity is as blue as it can get while staying tellable apart from
+         * pressure: pressure's violet and a true azure collapse to almost the
+         * same colour under deuteranopia (dE 2.4, which is nothing), and the
+         * separation only opens up once humidity is pushed toward cyan. At
+         * #0098b2 the worst pair is dE 9.0. Anything bluer trades that away
+         * fast — see the frontier in scripts/validate_palette.js. */
         pressure: '#9085e9',
-        temperature: '#c98500',
-        humidity: '#008300',
-        co2: '#d55181',
+        temperature: '#d55181',
+        humidity: '#0098b2',
+        co2: '#c98500',
 
         // Status is reserved: it only ever means good -> critical, and always
         // ships with an icon and a label so it never carries meaning by hue.
@@ -240,6 +311,7 @@ WD.CFG = (function () {
 
     return {
         WEATHER, weatherBase, CHANNELS, SCALE, FLAGS, SLOTS, BACKFILL_DAYS,
-        SYNC, RISK, CO2_BANDS, AIRING, RANGES, REFRESH, ANALYSIS, COLOR,
+        SYNC, RISK, CO2_BANDS, AIRING, RANGES, DEFAULT_RANGE, REFRESH,
+        ANALYSIS, COLOR,
     };
 })();
