@@ -129,6 +129,10 @@ cerebral vasodilator, so the effect may not be purely cognitive.
 
 ## Station firmware
 
+`firmware/BUILD-GUIDE.md` is the step-by-step hardware build — soldering the
+sensor hub, wiring the I2C bus, staged testing, and where to place the finished
+thing so the readings mean something.
+
 `firmware/weather_station/weather_station.ino` is the ESP32 sketch that feeds
 channel 3000045. Libraries: Adafruit BME280, Sensirion I2C SCD4x (>= 1.1.0),
 Sensirion Core, ThingSpeak.

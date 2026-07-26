@@ -380,19 +380,24 @@ void setup() {
 
   scanI2C();
 
-  // BME280. Retry rather than hanging forever: a sensor that does not answer
-  // at boot used to wedge the station until someone power-cycled it.
-  Serial.print("Initializing BME280 at 0x76...");
+  /* BME280. Modules are strapped to 0x76 or 0x77 depending on the board, so
+   * try both rather than making that a thing to debug. Retries rather than
+   * hanging: a sensor that did not answer at boot used to wedge the station
+   * until someone power-cycled it. */
+  Serial.print("Initializing BME280...");
+  uint8_t bmeAddr = 0;
   for (int attempt = 0; attempt < 5 && !bmeFound; attempt++) {
-    if (bme.begin(0x76, &Wire)) bmeFound = true;
-    else { Serial.print("."); delay(500); }
+    for (uint8_t addr : { 0x76, 0x77 }) {
+      if (bme.begin(addr, &Wire)) { bmeFound = true; bmeAddr = addr; break; }
+    }
+    if (!bmeFound) { Serial.print("."); delay(500); }
   }
   if (!bmeFound) {
-    Serial.println(" not found. Rebooting in 10s.");
+    Serial.println(" not found at 0x76 or 0x77. Rebooting in 10s.");
     delay(10000);
     ESP.restart();
   }
-  Serial.println(" found!");
+  Serial.printf(" found at 0x%02X!\n", bmeAddr);
 
   /* Bosch's weather-monitoring configuration: forced mode, single sampling,
    * filter off. The library's default is continuous 16x oversampling with a
