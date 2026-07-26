@@ -173,11 +173,23 @@ WD.CFG = (function () {
     //     light end 2.15:1 on surface)
     // Do not hand-edit these without re-running the validator.
     const COLOR = {
-        // Symptom severity is the one ordinal ramp in the app: one hue, stepped.
-        // Level 0 is deliberately *not* a ramp step — a clear day renders as an
-        // empty cell, so clear stretches read as blank space.
-        severity: [null, '#184f95', '#3987e5', '#9ec5f4'],
-        severityInk: [null, '#ffffff', '#ffffff', '#0b0b0b'], // label ink inside a filled cell
+        /* Symptom severity is the one ordinal ramp in the app: one hue, stepped.
+         * Level 0 is deliberately *not* a ramp step — a clear day renders as an
+         * empty cell, so clear stretches read as blank space.
+         *
+         * Brighter means worse, which looks inverted if you are used to
+         * light-mode charts where darker ink means more. On a dark surface it
+         * has to be this way round: distance from the background is the only
+         * thing that reads as intensity, so a dark "severe" would make the
+         * worst days vanish and the clear days glow. Same convention as a
+         * contribution graph in dark mode.
+         *
+         * The low step used to be #184f95, which sat at 2.15:1 against the
+         * surface — barely distinguishable from an empty cell, which muddied
+         * exactly the clear-versus-mild distinction the whole thing is for.
+         * Lifted to 3.23:1; still passes the ordinal checks. */
+        severity: [null, '#256abf', '#5598e7', '#b7d3f6'],
+        severityInk: [null, '#ffffff', '#0b0b0b', '#0b0b0b'], // digit ink, all >= 4.5:1
 
         // Environment measures. Colour follows the measure everywhere it appears.
         pressure: '#9085e9',

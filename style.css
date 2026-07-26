@@ -23,9 +23,10 @@
     --serious: #ec835a;
     --critical: #d03b3b;
 
-    --sev-1: #184f95;
-    --sev-2: #3987e5;
-    --sev-3: #9ec5f4;
+    /* Severity ramp — brighter is worse. See CFG.COLOR.severity for why. */
+    --sev-1: #256abf;
+    --sev-2: #5598e7;
+    --sev-3: #b7d3f6;
 
     --radius: 14px;
     --radius-sm: 8px;
@@ -249,7 +250,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; font-weight: 600; letter-spacing: -0.
 .rate-btn.selected { border-color: transparent; color: #ffffff; }
 .rate-btn.selected.level-0 { background: var(--axis); color: var(--ink); }
 .rate-btn.selected.level-1 { background: var(--sev-1); }
-.rate-btn.selected.level-2 { background: var(--sev-2); }
+.rate-btn.selected.level-2 { background: var(--sev-2); color: #0b0b0b; }
 .rate-btn.selected.level-3 { background: var(--sev-3); color: #0b0b0b; }
 
 .flag-group .rate-btn { width: 62px; }
