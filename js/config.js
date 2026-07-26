@@ -56,19 +56,31 @@ WD.CFG = (function () {
         { key: 'triptan',  label: 'Triptan',  icon: 'fa-pills', hint: 'Took a triptan (or other abortive) today' },
     ];
 
-    // Two slots a day. Morning is the anchor — it is checked as soon as the
-    // monitor comes on. Evening is a window rather than a point, because
-    // evenings are less predictable.
-    //
-    // Rating at fixed times matters: stimulant offset produces a systematic
-    // afternoon dip that would otherwise smear across every channel.
+    /* Two slots a day. Morning is the anchor — it is checked as soon as the
+     * monitor comes on. Evening is a window rather than a point, because
+     * evenings are less predictable.
+     *
+     * Rating at fixed times matters: stimulant offset produces a systematic
+     * afternoon dip that would otherwise smear across every channel.
+     *
+     * BOTH slots are point-in-time: "how am I right now", never "how was the
+     * day". Summarising a day would mean the morning got counted twice, which
+     * correlates the two readings by construction and would inflate the
+     * apparent cohesion between channels; it also leans on recall, which is
+     * exactly what is impaired on a foggy day. Two honest snapshots also show
+     * within-day movement — a 3 that fell to a 1 — which a single average
+     * throws away.
+     *
+     * The binary flags are the deliberate exception: they ask "has this
+     * happened today", so a headache that came and went between slots is not
+     * missed. They are OR-ed across the day in store.byDay(). */
     const SLOTS = [
         { key: 'morning', label: 'Morning', code: 1, icon: 'fa-mug-hot',
           opensAt: 4 * 60, dueFrom: 6 * 60, closesAt: 12 * 60,
-          blurb: 'Rate how you are right now, on waking.' },
+          blurb: 'Rate how you feel right now, on waking.' },
         { key: 'evening', label: 'Evening', code: 2, icon: 'fa-moon',
           opensAt: 17 * 60, dueFrom: 19 * 60, closesAt: 24 * 60 - 1,
-          blurb: 'Rate the day as a whole, looking back on it.' },
+          blurb: 'Rate how you feel right now — not the day as a whole.' },
     ];
 
     // How many days back the catch-up row will offer to backfill.
