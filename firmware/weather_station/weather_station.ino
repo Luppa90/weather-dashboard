@@ -84,6 +84,15 @@ const unsigned long co2MaxAgeMs = 3UL * 60UL * 1000UL;
 unsigned long lastCo2PollMs = 0;
 const unsigned long co2PollIntervalMs = 2000UL;
 
+/* The SCD41 went quiet once after about an hour while the BME280 carried on
+ * posting: a brownout on its 205 mA peak leaves it back in idle mode, where it
+ * answers on the bus but never reports data ready again. Nothing retried,
+ * because initScd4x only ever ran in setup(). This is the retry. */
+unsigned long lastCo2RecoveryMs = 0;
+const unsigned long co2SilentBeforeRecoveryMs = 4UL * 60UL * 1000UL;
+const unsigned long co2RecoveryIntervalMs = 5UL * 60UL * 1000UL;
+int co2RecoveryCount = 0;
+
 // ASC state is read once at boot: the query is an idle-mode-only command and
 // cannot be issued while a measurement is running.
 bool ascActive = false;
@@ -122,6 +131,7 @@ void performFrc();
 void toggleAsc();
 void printStatus();
 void handleSerial();
+void recoverCo2IfSilent();
 void scanI2C();
 void scanWiFi();
 
@@ -250,6 +260,40 @@ void pollCo2() {
   lastScdRh    = scdRh;
 }
 
+/* Restart the SCD41 if it has gone silent while still being present on the
+ * bus. Cheap, bounded, and it costs nothing when the sensor is healthy. */
+void recoverCo2IfSilent() {
+  if (!scdFound) return;
+
+  unsigned long silentFor = millis() - lastCo2AtMs;
+  if (isnan(lastCo2Ppm)) silentFor = millis();          // never produced a reading
+  if (silentFor < co2SilentBeforeRecoveryMs) return;
+  if (millis() - lastCo2RecoveryMs < co2RecoveryIntervalMs) return;
+  lastCo2RecoveryMs = millis();
+  co2RecoveryCount++;
+
+  Serial.printf("[SCD41] silent for %lus — reinitialising (attempt %d)\n",
+                silentFor / 1000, co2RecoveryCount);
+
+  scd4x.wakeUp();
+  scd4x.stopPeriodicMeasurement();
+  delay(500);
+
+  uint64_t serialNumber = 0;
+  if (scd4x.getSerialNumber(serialNumber) != NO_ERROR) {
+    Serial.println("[SCD41] not answering on the bus at all — check the wiring.");
+    return;
+  }
+
+  int16_t error = scd4x.startLowPowerPeriodicMeasurement();
+  if (error != NO_ERROR) {
+    errorToString(error, scdErrMsg, sizeof scdErrMsg);
+    Serial.print("[SCD41] restart failed: "); Serial.println(scdErrMsg);
+    return;
+  }
+  Serial.println("[SCD41] measurement restarted; first reading in ~30s.");
+}
+
 /* Prints every responding I2C address. The fastest way to tell a wiring
  * mistake (nothing responds) from a sensor problem (it responds but misbehaves). */
 void scanI2C() {
@@ -336,7 +380,7 @@ void printStatus() {
   if (scdFound) {
     if (isnan(lastCo2Ppm)) Serial.println("CO2: no reading yet");
     else Serial.printf("CO2: %.0f ppm (%lus ago)\n", lastCo2Ppm, (millis() - lastCo2AtMs) / 1000);
-    Serial.printf("ASC: %s\n", ascActive ? "on" : "off");
+    Serial.printf("ASC: %s   restarts: %d\n", ascActive ? "on" : "off", co2RecoveryCount);
 
     // Cross-check, not data. The SCD41 normally reads a few degrees warm
     // because it heats itself; a wild disagreement means something is wrong.
@@ -444,7 +488,8 @@ void setup() {
 // ---------------------------------------------------------------------- loop
 void loop() {
   handleSerial();
-  pollCo2();          // cheap, and keeps the 30s buffer drained
+  pollCo2();             // cheap, and keeps the 30s buffer drained
+  recoverCo2IfSilent();  // restart the sensor if it has stopped reporting
 
   ensureWiFi();
 

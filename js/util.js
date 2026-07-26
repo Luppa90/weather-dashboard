@@ -89,6 +89,9 @@ WD.util = (function () {
         if (ms === null || ms === undefined || !isFinite(ms)) return 'an unknown time';
         const m = Math.max(1, Math.round(ms / 60000));
         if (m < 60) return plural(m, 'minute');
+        // Rounding 92 minutes to "2 hours" overstates it by a third, and this
+        // number is used to judge how long a sensor has been dead.
+        if (m < 180) return `${Math.floor(m / 60)}h ${m % 60}m`;
         const h = Math.round(m / 60);
         if (h < 48) return plural(h, 'hour');
         return plural(Math.round(h / 24), 'day');

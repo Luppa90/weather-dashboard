@@ -189,7 +189,11 @@ WD.app = (function () {
         }
 
         for (const tile of tiles) {
-            const node = el('article', { class: 'stat' }, [
+            /* One sensor can die while the station keeps posting the others.
+             * The reading would otherwise sit there looking current forever, so
+             * a stale measure is dimmed and labelled with its age instead. */
+            const stale = weather.measureStale(tile.key);
+            const node = el('article', { class: `stat${stale ? ' is-stale' : ''}` }, [
                 el('div', { class: 'stat-head' }, [
                     icon(tile.icon, 'stat-icon'),
                     el('span', { class: 'stat-label', text: tile.label }),
@@ -198,13 +202,18 @@ WD.app = (function () {
                     el('span', { text: num(tile.value, tile.digits) }),
                     el('small', { text: tile.unit }),
                 ]),
-                tile.delta !== undefined && tile.delta !== null
-                    ? el('div', { class: `stat-delta ${tile.delta > 0.2 ? 'up' : tile.delta < -0.2 ? 'down' : 'flat'}` }, [
-                        icon(tile.delta > 0.2 ? 'fa-arrow-trend-up' : tile.delta < -0.2 ? 'fa-arrow-trend-down' : 'fa-arrow-right-long'),
-                        el('span', { text: `${signed(tile.delta, 1)} ${tile.deltaLabel}` }),
+                stale
+                    ? el('div', { class: 'badge badge-critical' }, [
+                        icon('fa-triangle-exclamation'),
+                        el('span', { text: `No reading for ${WD.util.duration(weather.measureAge(tile.key))}` }),
                     ])
-                    : null,
-                tile.band
+                    : tile.delta !== undefined && tile.delta !== null
+                        ? el('div', { class: `stat-delta ${tile.delta > 0.2 ? 'up' : tile.delta < -0.2 ? 'down' : 'flat'}` }, [
+                            icon(tile.delta > 0.2 ? 'fa-arrow-trend-up' : tile.delta < -0.2 ? 'fa-arrow-trend-down' : 'fa-arrow-right-long'),
+                            el('span', { text: `${signed(tile.delta, 1)} ${tile.deltaLabel}` }),
+                        ])
+                        : null,
+                !stale && tile.band
                     ? el('div', { class: `badge badge-${tile.band.status}` }, [
                         icon(statusIcon(tile.band.status)),
                         el('span', { text: tile.band.label }),
@@ -225,8 +234,19 @@ WD.app = (function () {
          * already open. The airing readout answers the question actually being
          * asked at that moment, which is when to shut it again. */
         const air = weather.state.hasCO2 ? weather.airing() : null;
+        const co2Dead = weather.state.hasCO2 && weather.measureStale('co2');
 
-        if (air) {
+        if (co2Dead) {
+            clear(co2Note).append(
+                icon('fa-triangle-exclamation'),
+                el('span', {
+                    text: `The CO₂ sensor has not reported for ${WD.util.duration(weather.measureAge('co2'))}, `
+                        + 'while the others are still posting. Check the SCD41 — serial command x.',
+                }),
+            );
+            co2Note.className = 'inline-note note-critical';
+            co2Note.hidden = false;
+        } else if (air) {
             const settled = air.state === 'settled';
             clear(co2Note).append(
                 icon(settled ? 'fa-circle-check' : 'fa-wind'),

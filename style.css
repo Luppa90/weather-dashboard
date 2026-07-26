@@ -377,15 +377,21 @@ kbd {
     background: var(--surface); border: 1px solid var(--hairline); color: var(--ink-2);
 }
 .inline-note i { margin-top: 3px; font-size: .8125rem; }
+/* A measure whose sensor has stopped: the number stays visible because it is
+   still the last thing known, but it must not read as current. */
+.stat.is-stale .stat-value { color: var(--ink-muted); }
+.stat.is-stale .sparkline { opacity: .35; }
+
 .note-good { color: var(--good); }
 .note-good i { color: var(--good); }
+.note-warning i { color: var(--warning); }
+.note-serious i { color: var(--serious); }
+.note-critical { color: var(--critical); }
+.note-critical i { color: var(--critical); }
 /* Airing in progress: informational, not a status — deliberately not a status
    colour, since "a window is open" is neither good nor bad. */
 .note-info { color: var(--ink-2); }
 .note-info i { color: var(--accent); }
-.note-warning i { color: var(--warning); }
-.note-serious i { color: var(--serious); }
-.note-critical i { color: var(--critical); }
 
 .risk-banner {
     display: flex; align-items: flex-start; gap: 14px; margin-bottom: var(--gap);

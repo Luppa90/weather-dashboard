@@ -21,6 +21,7 @@ WD.weather = (function () {
         range: [],             // feeds for the selected chart window
         tendency: { now: null, change3h: null, change24h: null, risk: null },
         daily: [],             // [{ day, pressure, pressureSwing, temperature, humidity, co2 }]
+        measuredAt: {},        // per-measure timestamp of the last real reading
         hasCO2: false,
         sensorAt: null,        // when the station last reported
         lastSuccessAt: null,   // when we last got data
@@ -98,7 +99,29 @@ WD.weather = (function () {
             co2: co2?.v ?? null,
             at: state.sensorAt,
         };
+
+        /* When each measure was last actually reported, which is not the same
+         * as when the station last posted. One sensor can fail while the others
+         * keep going — and because the value above is taken from the newest row
+         * that *has* one, a dead sensor would otherwise show its last reading
+         * as though it were current, indefinitely. */
+        state.measuredAt = {
+            temperature: temperature?.at ?? null,
+            humidity: humidity?.at ?? null,
+            pressure: pressure?.at ?? null,
+            co2: co2?.at ?? null,
+        };
     }
+
+    /* How long a given measure has been missing, in ms. Infinity if it has
+     * never been seen. */
+    function measureAge(key) {
+        const at = state.measuredAt?.[key];
+        return at ? Date.now() - at.getTime() : Infinity;
+    }
+
+    // The station posts every 30s, so ten missed rows is unambiguous.
+    const measureStale = (key) => measureAge(key) > REFRESH.measureStaleAfterMs;
 
     async function fetchRange() {
         const cfg = RANGES[state.currentRange];
@@ -225,6 +248,10 @@ WD.weather = (function () {
      * stable room never shows the badge. */
     function airing() {
         const cfg = WD.CFG.AIRING;
+        // Never reason about a sensor that has stopped reporting: the newest
+        // points would be arbitrarily old, and a frozen curve looks exactly
+        // like a settled one.
+        if (measureStale('co2')) return null;
         const points = series(state.recent, F.co2);
         if (points.length < cfg.minSamples) return null;
 
@@ -272,6 +299,7 @@ WD.weather = (function () {
     }
 
     return {
-        state, refresh, setRange, fetchDaily, series, withGaps, co2Band, airing, freshness,
+        state, refresh, setRange, fetchDaily, series, withGaps, co2Band, airing,
+        measureAge, measureStale, freshness,
     };
 })();

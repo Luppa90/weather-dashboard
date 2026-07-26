@@ -164,6 +164,9 @@ WD.CFG = (function () {
         staleAfterMs: 3 * 60000,   // data older than this shows an amber pill
         veryStaleAfterMs: 15 * 60000, // ...and a red one past this
         sensorSilentMs: 20 * 60000,   // station itself has stopped reporting
+        // A single measure missing this long means that sensor has failed even
+        // though the station is still posting the others.
+        measureStaleAfterMs: 5 * 60000,
         fetchTimeoutMs: 15000,
         backoffMs: [2000, 5000, 15000, 30000, 60000, 120000],
         heartbeatMs: 1000,      // drift detector: catches a frozen/slept tab
