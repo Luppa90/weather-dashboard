@@ -125,6 +125,22 @@ WD.CFG = (function () {
     // a closed air-conditioned room accumulates it fast. Separating "fog at 2
     // with CO2 at 1400" from "fog at 2 with CO2 at 600" tells two different
     // mechanisms apart.
+    /* Airing-out detector. Clearing a room is exponential, so the useful
+     * signal is not "CO2 is low" but "CO2 has stopped falling" — past that
+     * point the window is only costing you cool air.
+     *
+     * Thresholds are in ppm/min, fitted over the last few minutes of 30s
+     * samples. A closed room with one person in it climbs at roughly
+     * +7 ppm/min, which is what clears the badge again once the window shuts. */
+    const AIRING = {
+        slopeWindowMs: 4 * 60000,   // regression window
+        lookbackMs: 25 * 60000,     // how far back to look for the peak
+        minDrop: 60,                // ppm below the recent peak before this counts as airing
+        fallingSlope: -4,           // still worth leaving open
+        climbingSlope: 2,           // refilling: window is shut again, clear the badge
+        minSamples: 5,
+    };
+
     const CO2_BANDS = [
         { max: 800,      key: 'fresh',    label: 'Fresh',    status: 'good',     note: 'Well ventilated.' },
         { max: 1200,     key: 'elevated', label: 'Elevated', status: 'warning',  note: 'Cognition measurably affected in some studies. Worth cracking a window.' },
@@ -221,6 +237,6 @@ WD.CFG = (function () {
 
     return {
         WEATHER, weatherBase, CHANNELS, SCALE, FLAGS, SLOTS, BACKFILL_DAYS,
-        SYNC, RISK, CO2_BANDS, RANGES, REFRESH, ANALYSIS, COLOR,
+        SYNC, RISK, CO2_BANDS, AIRING, RANGES, REFRESH, ANALYSIS, COLOR,
     };
 })();

@@ -378,6 +378,11 @@ kbd {
 }
 .inline-note i { margin-top: 3px; font-size: .8125rem; }
 .note-good { color: var(--good); }
+.note-good i { color: var(--good); }
+/* Airing in progress: informational, not a status — deliberately not a status
+   colour, since "a window is open" is neither good nor bad. */
+.note-info { color: var(--ink-2); }
+.note-info i { color: var(--accent); }
 .note-warning i { color: var(--warning); }
 .note-serious i { color: var(--serious); }
 .note-critical i { color: var(--critical); }

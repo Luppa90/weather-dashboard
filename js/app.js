@@ -120,7 +120,9 @@ WD.app = (function () {
         const target = WD.checkin.currentTarget();
         const due = target.state === 'due' || target.state === 'missed';
         const base = 'Weather & Migraine';
-        document.title = due ? `● ${target.slot.label} check-in — ${base}` : base;
+        document.title = airingSettled
+            ? `✓ Aired out — close up — ${base}`
+            : due ? `● ${target.slot.label} check-in — ${base}` : base;
         const favicon = $('#favicon');
         if (favicon) {
             const dot = due ? COLOR.status.warning : COLOR.severity[2];
@@ -217,12 +219,39 @@ WD.app = (function () {
         // of guidance rather than only a number.
         const co2Note = $('#co2-note');
         const band = weather.state.hasCO2 ? weather.co2Band(latest.co2) : null;
-        co2Note.hidden = !band || band.status === 'good';
-        if (!co2Note.hidden) {
-            clear(co2Note).append(icon(statusIcon(band.status)), el('span', { text: band.note }));
-            co2Note.className = `inline-note note-${band.status}`;
+
+        /* While a window is actually open, the band advice is the wrong thing
+         * to show — "worth cracking a window" is unhelpful when the window is
+         * already open. The airing readout answers the question actually being
+         * asked at that moment, which is when to shut it again. */
+        const air = weather.state.hasCO2 ? weather.airing() : null;
+
+        if (air) {
+            const settled = air.state === 'settled';
+            clear(co2Note).append(
+                icon(settled ? 'fa-circle-check' : 'fa-wind'),
+                el('span', {
+                    text: settled
+                        ? `Aired out at ${Math.round(air.current)} ppm — it has stopped falling, so you can close up.`
+                        : `Airing: down ${Math.round(air.drop)} ppm, still falling at ${Math.abs(air.slope).toFixed(0)} ppm/min. Leave it open.`,
+                }),
+            );
+            co2Note.className = `inline-note ${settled ? 'note-good' : 'note-info'}`;
+            co2Note.hidden = false;
+        } else {
+            co2Note.hidden = !band || band.status === 'good';
+            if (!co2Note.hidden) {
+                clear(co2Note).append(icon(statusIcon(band.status)), el('span', { text: band.note }));
+                co2Note.className = `inline-note note-${band.status}`;
+            }
         }
+        airingSettled = !!air && air.state === 'settled';
     }
+
+    // Read by updateTabNudge so the "you can close up" cue reaches a tab that
+    // is not being looked at — which is the whole point, since airing out
+    // means standing by a window rather than at the screen.
+    let airingSettled = false;
 
     const statusIcon = (status) => ({
         good: 'fa-circle-check', warning: 'fa-circle-exclamation',

@@ -195,6 +195,59 @@ WD.weather = (function () {
     const co2Band = (ppm) =>
         ppm === null || ppm === undefined ? null : CO2_BANDS.find(b => ppm < b.max);
 
+    // ------------------------------------------------------------ airing out
+    /* Least-squares slope in units-per-minute over [{t, v}] points. */
+    function slopePerMinute(points) {
+        if (points.length < 2) return null;
+        const t0 = points[0].t.getTime();
+        const xs = points.map(p => (p.t.getTime() - t0) / 60000);
+        const ys = points.map(p => p.v);
+        const n = xs.length;
+        const mx = xs.reduce((a, b) => a + b, 0) / n;
+        const my = ys.reduce((a, b) => a + b, 0) / n;
+        let sxy = 0, sxx = 0;
+        for (let i = 0; i < n; i++) {
+            sxy += (xs[i] - mx) * (ys[i] - my);
+            sxx += (xs[i] - mx) ** 2;
+        }
+        return sxx === 0 ? null : sxy / sxx;
+    }
+
+    /* "Can I shut the window yet?"
+     *
+     * Air exchange is exponential, so waiting for a target number is the wrong
+     * test — the last hundred ppm can take longer than the first four hundred,
+     * and past the plateau an open window is only bleeding cool air. What
+     * matters is that the curve has flattened: whatever exchange the room can
+     * manage, it has already happened.
+     *
+     * Returns null unless a real airing episode is under way, so a normally
+     * stable room never shows the badge. */
+    function airing() {
+        const cfg = WD.CFG.AIRING;
+        const points = series(state.recent, F.co2);
+        if (points.length < cfg.minSamples) return null;
+
+        const now = points[points.length - 1].t.getTime();
+        const window = points.filter(p => now - p.t.getTime() <= cfg.lookbackMs);
+        if (window.length < cfg.minSamples) return null;
+
+        const current = window[window.length - 1].v;
+        const peak = Math.max(...window.map(p => p.v));
+        const drop = peak - current;
+        if (drop < cfg.minDrop) return null;      // nothing was opened
+
+        const recent = points.filter(p => now - p.t.getTime() <= cfg.slopeWindowMs);
+        const slope = slopePerMinute(recent);
+        if (slope === null) return null;
+        if (slope > cfg.climbingSlope) return null;  // climbing again — already shut
+
+        return {
+            state: slope <= cfg.fallingSlope ? 'falling' : 'settled',
+            slope, drop, current, peak,
+        };
+    }
+
     // ------------------------------------------------------------- freshness
     /* Two different kinds of "stale", kept apart because they need different
      * reactions: our own data being old (reload it) versus the station having
@@ -219,6 +272,6 @@ WD.weather = (function () {
     }
 
     return {
-        state, refresh, setRange, fetchDaily, series, withGaps, co2Band, freshness,
+        state, refresh, setRange, fetchDaily, series, withGaps, co2Band, airing, freshness,
     };
 })();
