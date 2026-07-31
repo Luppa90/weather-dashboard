@@ -39,8 +39,8 @@
 #define NO_ERROR 0
 
 // --- User Configuration: WiFi ---
-const char* ssid     = "Ooredoo-X16-FF352A";
-const char* password = "0C485CEDUm!60";
+const char* ssid     = "Eero";
+const char* password = "Borabora@1969!";
 
 // --- User Configuration: ThingSpeak ---
 unsigned long myChannelNumber = 3000045;
@@ -57,8 +57,17 @@ const char* myWriteAPIKey     = "BO70JO7QUO5N8WMD";
  * instead (serial command 'c'). Turn it on if the room is aired regularly. */
 const bool ENABLE_ASC = false;
 
-// Outdoor CO2 baseline used by the forced recalibration.
-const uint16_t FRC_TARGET_PPM = 425;
+/* Outdoor CO2 baseline used by the forced recalibration. The global daily
+ * average was 429 ppm in mid-2026 and rises 2-3 ppm a year, so check a live
+ * figure (co2.earth, NOAA) before recalibrating rather than trusting this.
+ *
+ * Do not over-tune it, though: the air you calibrate in is the far larger
+ * error. Residential and roadside air sits tens of ppm above the clean global
+ * background, and the northern mid-latitude seasonal cycle swings about 6 ppm
+ * between the May peak and the September trough. Telling the sensor that air
+ * which is really 470 is 429 leaves it reading 40 ppm low — which swamps any
+ * argument about whether this constant should say 425 or 429. */
+const uint16_t FRC_TARGET_PPM = 429;
 
 // --- Time Synchronization ---
 const char* ntpServer          = "pool.ntp.org";
