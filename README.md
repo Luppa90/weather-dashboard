@@ -120,12 +120,27 @@ Every CO₂ surface in the dashboard stays hidden until field5 actually reports 
 value, so nothing needs changing when the sensor goes in: publish to field5 and
 the tile, the chart and the fog-confound analysis appear on their own.
 
-CO₂ is in here for a specific reason. Elevated indoor CO₂ independently degrades
-cognition, and a closed air-conditioned room accumulates it fast — which makes it
-a genuine confound for the **fog** channel and only that channel. Being able to
-separate "fog at 2 with CO₂ at 1400" from "fog at 2 with CO₂ at 600" tells two
-mechanisms apart that would otherwise both be logged as a bad day. It is also a
-cerebral vasodilator, so the effect may not be purely cognitive.
+CO₂ is in here for a specific reason, stated carefully because the popular
+version of this claim overstates the evidence. CO₂ is a reliable, physically
+grounded proxy for *is this room exchanging air* — decades of field studies tie
+poor ventilation to worse cognitive outcomes and more reported symptoms. What
+is much shakier is CO₂ gas *itself*, isolated from the bioeffluents/VOCs/heat
+that build up alongside it, causing that effect at the 800–1600 ppm a bedroom
+actually reaches. The widely-cited studies behind that stronger claim (Satish
+2012, the isolated-CO₂ arm of Allen's 2016 Harvard CogFx study) report effects
+their own authors called "almost defy[ing] credibility," and every chamber
+study built specifically to separate pure CO₂ from co-occurring bioeffluents
+found nothing across and above this range. ASHRAE's own 2025 position
+document calls the evidence "inconsistent." The oft-repeated cerebral-vasodilator
+mechanism is real, but only at 20,000–40,000 ppm — 15 to 50× higher than
+anything this sensor will read indoors.
+
+None of that makes the sensor pointless — a closed, air-conditioned room
+accumulates CO₂ fast precisely because it accumulates *everything* fast, and
+that combination is a genuine confound for the **fog** channel and only that
+channel. Separating "fog at 2 with CO₂ at 1400" from "fog at 2 with CO₂ at 600"
+still tells stale air apart from clean air — it just isn't proof that the CO₂
+molecule is what did it.
 
 ## Station firmware
 

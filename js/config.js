@@ -141,11 +141,6 @@ WD.CFG = (function () {
         minAnchorSamples: 2,
     };
 
-    // Indoor CO2 bands. Above ~1000ppm CO2 independently degrades cognition,
-    // which makes it a genuine confound for the fog channel specifically —
-    // a closed air-conditioned room accumulates it fast. Separating "fog at 2
-    // with CO2 at 1400" from "fog at 2 with CO2 at 600" tells two different
-    // mechanisms apart.
     /* Airing-out detector. Clearing a room is exponential, so the useful
      * signal is not "CO2 is low" but "CO2 has stopped falling" — past that
      * point the window is only costing you cool air.
@@ -178,11 +173,34 @@ WD.CFG = (function () {
         minSamples: 5,
     };
 
+    /* What the evidence actually supports: CO2 is a reliable, physically
+     * grounded proxy for "is this room exchanging air" — decades of field
+     * studies tie poor ventilation to worse cognitive/test outcomes and more
+     * reported symptoms. What it does NOT have solid support for is CO2 gas
+     * itself, isolated from the bioeffluents/VOCs/heat that build up
+     * alongside it, causing that effect at 800-1600ppm specifically. The
+     * popularised studies behind that stronger claim (Satish 2012's 44-94%
+     * decision-making collapse at 2500ppm; the isolated-CO2 arm of Allen's
+     * 2016 Harvard CogFx study) report effects their own authors called
+     * "almost defy[ing] credibility," and independent replications using the
+     * identical test — submariners to 15,000ppm, astronaut analogues to
+     * 5,000ppm — found no comparable effect. Every chamber study built
+     * specifically to isolate pure CO2 from co-occurring bioeffluents (Zhang/
+     * Wargocki/Lian 2016-17, Kajtár & Herczeg 2012, Cao et al. 2022, all
+     * spanning or exceeding this band) found nothing. ASHRAE's own 2025
+     * position document calls the evidence "inconsistent."
+     *
+     * Still a genuine confound for the fog channel, because a closed room
+     * accumulates all of stale-air together — just don't read "CO2 did this,"
+     * read "this room wasn't ventilated, and something in that mix might
+     * have." Separating "fog at 2 with CO2 at 1400" from "fog at 2 with CO2 at
+     * 600" is still worth doing; it tells stale air apart from clean air, not
+     * CO2 apart from every other thing stale air carries with it. */
     const CO2_BANDS = [
         { max: 800,      key: 'fresh',    label: 'Fresh',    status: 'good',     note: 'Well ventilated.' },
-        { max: 1200,     key: 'elevated', label: 'Elevated', status: 'warning',  note: 'Cognition measurably affected in some studies. Worth cracking a window.' },
-        { max: 1600,     key: 'high',     label: 'High',     status: 'serious',  note: 'A plausible independent cause of fog. Ventilate before trusting the fog rating.' },
-        { max: Infinity, key: 'veryHigh', label: 'Very high', status: 'critical', note: 'Ventilate now. Treat today\'s fog rating as confounded.' },
+        { max: 1200,     key: 'elevated', label: 'Elevated', status: 'warning',  note: 'Signals reduced air exchange, not a proven cognitive effect on its own. Worth cracking a window anyway.' },
+        { max: 1600,     key: 'high',     label: 'High',     status: 'serious',  note: 'Air exchange has been poor for a while — treat as stale, not necessarily as a proven cause of fog. Ventilate before trusting the fog rating.' },
+        { max: Infinity, key: 'veryHigh', label: 'Very high', status: 'critical', note: 'Ventilate now — whatever is building up in this room (CO2 among it) makes today\'s fog rating unreliable on its own.' },
     ];
 
     /* Chart ranges for the environment section. ThingSpeak averages

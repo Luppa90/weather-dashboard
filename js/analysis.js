@@ -238,10 +238,14 @@ WD.analysis = (function () {
     }
 
     // ------------------------------------------------------------ CO2 & fog
-    /* Elevated indoor CO2 independently degrades cognition, so it is a genuine
+    /* Elevated CO2 is a reliable proxy for a stale, under-ventilated room —
+     * not a demonstrated direct cause of cognitive impairment on its own. See
+     * CFG.CO2_BANDS for the evidence behind that distinction. Stale air (of
+     * which CO2 is one marker, alongside bioeffluents/VOCs/heat) is a genuine
      * confound for the fog channel specifically — and only for that channel.
-     * If fog tracks CO2 while the other four do not, those are two different
-     * mechanisms that would otherwise be recorded as one bad day. */
+     * If fog tracks CO2 while the other four do not, that separates "the room
+     * was stuffy" from "the migraine cluster was rising" — two different
+     * things that would otherwise be recorded as one bad day. */
     function co2Confound(days, dailyEnv) {
         const env = new Map(dailyEnv.filter(d => d.co2 !== null).map(d => [d.day, d]));
         const rows = days.filter(d => d.complete && env.has(d.day))
@@ -277,11 +281,11 @@ WD.analysis = (function () {
         let verdict;
         if (rFog === null) verdict = 'Not enough variation in CO2 or fog to separate them yet.';
         else if (rFog >= 0.3 && (rRest === null || rFog - rRest >= 0.2)) {
-            verdict = 'Fog tracks CO2 while the rest of the cluster does not — that is the air, not the migraine. Ventilate before trusting a fog rating.';
+            verdict = 'Fog tracks CO2 while the rest of the cluster does not — worth reading as "this room was stale" rather than "the migraine cluster is rising." Ventilate before trusting a fog rating (though direct-CO2 dosing studies mostly find no effect at typical indoor levels, so treat this as a stale-room signal, not proof CO2 itself is the cause).';
         } else if (rFog >= 0.3) {
-            verdict = 'Fog rises with CO2, but so does the rest of the cluster — this looks like stuffy rooms coinciding with bad days rather than CO2 causing the fog.';
+            verdict = 'Fog rises with CO2, but so does the rest of the cluster — this looks like stuffy rooms coinciding with bad days rather than anything CO2-specific.';
         } else {
-            verdict = 'No CO2-specific effect on fog so far. Fog looks like part of the cluster rather than a room-air problem.';
+            verdict = 'No CO2-specific pattern in fog so far. Fog looks like part of the cluster rather than a room-air effect.';
         }
 
         return { ready: true, n: rows.length, buckets: summary, rFog, rRest, verdict };
