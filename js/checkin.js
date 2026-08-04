@@ -25,6 +25,7 @@ WD.checkin = (function () {
     let editing = null;    // { day, slot } when working on something other than "now"
     let peeked = false;    // the reader chose to see the data before rating
     let expanded = false;  // idle card manually opened to review or edit today
+    let legendOpen = false; // "what the numbers mean", kept open across re-renders
     const onSaved = new Set();
 
     // --------------------------------------------------------------- timing
@@ -128,11 +129,31 @@ WD.checkin = (function () {
         ]));
 
         // One scale key for all five rows, rather than repeating labels per row.
-        card.appendChild(el('div', { class: 'scale-key' },
-            SCALE.map(s => el('span', {}, [
+        // The full anchor sentences sit behind a toggle: title tooltips do not
+        // exist on touch, and four sentences permanently on screen would slow
+        // the ten-second path.
+        const legend = el('div', { class: 'scale-legend', id: 'scale-legend', hidden: !legendOpen },
+            SCALE.map(s => el('p', {}, [
+                el('b', { text: `${s.value} ${s.label}` }),
+                el('span', { text: s.desc }),
+            ])));
+        card.appendChild(el('div', { class: 'scale-key' }, [
+            ...SCALE.map(s => el('span', {}, [
                 el('b', { text: String(s.value) }),
                 el('span', { text: s.label }),
-            ]))));
+            ])),
+            el('button', {
+                type: 'button', class: 'link-btn legend-toggle',
+                'aria-expanded': legendOpen ? 'true' : 'false',
+                'aria-controls': 'scale-legend',
+                onclick: (e) => {
+                    legendOpen = !legendOpen;
+                    legend.hidden = !legendOpen;
+                    e.currentTarget.setAttribute('aria-expanded', legendOpen ? 'true' : 'false');
+                },
+            }, [icon('fa-circle-question'), el('span', { text: 'What the numbers mean' })]),
+        ]));
+        card.appendChild(legend);
 
         const form = el('form', { class: 'checkin-form', novalidate: true });
         form.addEventListener('submit', (e) => { e.preventDefault(); commit(target); });
@@ -140,6 +161,10 @@ WD.checkin = (function () {
         for (const channel of CHANNELS) {
             form.appendChild(ratingRow(channel));
         }
+        // The flags are the one deliberate exception to "right now" — they ask
+        // about the whole day (see the SLOTS notes in config.js). Without a
+        // label saying so, the card appears to contradict its own blurb.
+        form.appendChild(el('p', { class: 'flag-divider', text: 'And for the day as a whole:' }));
         for (const flag of FLAGS) {
             form.appendChild(flagRow(flag));
         }

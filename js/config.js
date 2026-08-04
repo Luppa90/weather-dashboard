@@ -41,10 +41,16 @@ WD.CFG = (function () {
 
     // Rating scale. Deliberately short labels: this has to be readable in the
     // half-second before a tap.
+    //
+    // The descriptions are all built on one test — does going looking for it
+    // find it? — and never name a duration, because ratings are snapshots
+    // (see SLOTS below). If they are ever reworded again, keep the four
+    // boundaries where they are: moving a boundary would end comparability
+    // with every check-in already recorded.
     const SCALE = [
-        { value: 0, label: 'None',     desc: 'Absent. Would not have noticed unasked.' },
-        { value: 1, label: 'Mild',     desc: 'Noticeable if I check in with myself.' },
-        { value: 2, label: 'Moderate', desc: 'Present in the background all day.' },
+        { value: 0, label: 'None',     desc: 'Nothing there, even when I go looking for it.' },
+        { value: 1, label: 'Mild',     desc: 'There only when I go looking for it.' },
+        { value: 2, label: 'Moderate', desc: 'There without my looking; keeps announcing itself.' },
         { value: 3, label: 'Severe',   desc: 'Dominating; shaping what I do.' },
     ];
 
