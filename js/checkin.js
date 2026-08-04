@@ -86,6 +86,23 @@ WD.checkin = (function () {
 
     const draftComplete = () => draft && CHANNELS.every(c => typeof draft.ratings[c.key] === 'number');
 
+    /* The flags ask about the whole day, and store.byDay() ORs the two slots.
+     * Once the morning has recorded a yes, the evening question has only one
+     * honest answer — asking it again invites momentary logic ("no pain right
+     * now") whose no the OR would silently discard. The evening card shows
+     * such a flag locked on yes instead. Editing the morning back to no
+     * unlocks it, since this reads the morning entry live. */
+    function lockedFlags() {
+        if (!draft || draft.slot !== 'evening') return {};
+        const morning = WD.store.get(draft.day, 'morning');
+        if (!morning) return {};
+        const locked = {};
+        for (const flag of FLAGS) {
+            if (morning[flag.key] === true) locked[flag.key] = true;
+        }
+        return locked;
+    }
+
     // --------------------------------------------------------------- render
     function render() {
         if (!container) return;
@@ -165,8 +182,12 @@ WD.checkin = (function () {
         // about the whole day (see the SLOTS notes in config.js). Without a
         // label saying so, the card appears to contradict its own blurb.
         form.appendChild(el('p', { class: 'flag-divider', text: 'And for the day as a whole:' }));
+        // Preset here rather than in startDraft: the draft can predate the
+        // morning entry that locks it (evening open, morning backfilled).
+        const locked = lockedFlags();
+        for (const key of Object.keys(locked)) draft[key] = true;
         for (const flag of FLAGS) {
-            form.appendChild(flagRow(flag));
+            form.appendChild(flagRow(flag, locked[flag.key] === true));
         }
 
         // Note is collapsed by default: an always-visible text field reads as
@@ -200,8 +221,8 @@ WD.checkin = (function () {
                 title: 'Set every channel to 0 and no headache',
                 onclick: () => {
                     for (const c of CHANNELS) draft.ratings[c.key] = 0;
-                    draft.headache = false;
-                    draft.triptan = false;
+                    const locked = lockedFlags();
+                    for (const f of FLAGS) draft[f.key] = locked[f.key] === true;
                     render();
                     setTimeout(() => container.querySelector('.btn-save')?.focus(), 0);
                 },
@@ -272,12 +293,15 @@ WD.checkin = (function () {
         return row;
     }
 
-    function flagRow(flag) {
-        const row = el('div', { class: 'rate-row flag-row', dataset: { key: flag.key } });
+    function flagRow(flag, locked = false) {
+        const row = el('div', { class: `rate-row flag-row${locked ? ' locked' : ''}`, dataset: { key: flag.key } });
         row.appendChild(el('div', { class: 'rate-label' }, [
             icon(flag.icon),
             el('span', { class: 'rate-name', text: flag.label }),
-            el('span', { class: 'rate-hint', text: flag.hint }),
+            el('span', {
+                class: 'rate-hint',
+                text: locked ? 'Already a yes this morning, and it covers the whole day' : flag.hint,
+            }),
         ]));
 
         const group = el('div', { class: 'rate-group flag-group', role: 'radiogroup', 'aria-label': flag.label });
@@ -289,12 +313,15 @@ WD.checkin = (function () {
                 role: 'radio',
                 'aria-checked': selected ? 'true' : 'false',
                 'aria-label': `${flag.label}: ${label}`,
-                tabindex: selected || (draft[flag.key] === undefined && i === 0) ? '0' : '-1',
+                disabled: locked,
+                tabindex: !locked && (selected || (draft[flag.key] === undefined && i === 0)) ? '0' : '-1',
                 onclick: () => setFlag(flag.key, value, { advance: true }),
                 dataset: { digit: String(digit) },
             }, [el('span', { text: label })]));
         });
-        group.addEventListener('keydown', (e) => handleKeys(e, group, (v) => setFlag(flag.key, v === 1, { advance: true }), 0, 1));
+        if (!locked) {
+            group.addEventListener('keydown', (e) => handleKeys(e, group, (v) => setFlag(flag.key, v === 1, { advance: true }), 0, 1));
+        }
         row.appendChild(group);
         return row;
     }
@@ -357,6 +384,7 @@ WD.checkin = (function () {
         }
         for (const flag of FLAGS) {
             const row = root.querySelector(`.rate-row[data-key="${flag.key}"]`);
+            if (row.classList.contains('locked')) continue;
             row.querySelectorAll('button').forEach((button, i) => {
                 const selected = draft[flag.key] === (i === 1);
                 button.classList.toggle('selected', selected);
@@ -373,7 +401,8 @@ WD.checkin = (function () {
     }
 
     function focusNextRow(fromKey) {
-        const order = [...CHANNELS.map(c => c.key), ...FLAGS.map(f => f.key)];
+        const locked = lockedFlags();
+        const order = [...CHANNELS.map(c => c.key), ...FLAGS.map(f => f.key)].filter(key => !locked[key]);
         const next = order[order.indexOf(fromKey) + 1];
         const root = container.querySelector('.checkin-form');
         if (!root) return;

@@ -70,6 +70,11 @@ ratings.
   `CFG.ANALYSIS`) and say what they are waiting for. Do not lower these to make
   a panel appear.
 - **Headache *episodes*, not headache days**, drive the lead/lag epochs.
+- **A morning "yes" locks the evening flags.** Headache/triptan cover the whole
+  day and are OR-ed across slots in `store.byDay()`; re-asking in the evening
+  invites a momentary "no" the OR would discard anyway, so the evening card
+  shows the morning's yes locked instead. Correct a wrong morning by editing
+  the morning entry — the lock follows it live.
 - **CO₂ (field5) surfaces are hidden until the channel reports on it.** The NDIR
   sensor is not wired yet; nothing needs changing when it is.
 - **Sync credentials are never committed.** This repo is public; a read key in

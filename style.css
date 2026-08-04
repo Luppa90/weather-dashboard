@@ -250,6 +250,11 @@ h1, h2, h3 { line-height: 1.25; margin: 0; font-weight: 600; letter-spacing: -0.
 /* The two flags ask about the whole day, unlike the momentary rows above. */
 .flag-divider { margin: 14px 0 0; color: var(--ink-muted); font-size: .75rem; }
 
+/* A locked flag is a morning "yes" the evening cannot honestly undo. The
+ * explanation must survive mobile, where rate-hint is otherwise hidden. */
+.flag-row.locked .rate-btn { opacity: .55; cursor: default; }
+.flag-row.locked .rate-hint { display: block; }
+
 .rate-group { display: flex; gap: 6px; flex-shrink: 0; }
 .rate-btn {
     width: 46px; height: 42px; border-radius: var(--radius-sm); cursor: pointer;
